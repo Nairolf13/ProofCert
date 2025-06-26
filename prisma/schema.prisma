@@ -18,6 +18,7 @@ model User {
   profileImage    String? 
   
   proofs        Proof[]
+  refreshTokens  RefreshToken[]
   
   @@map("users")
 }
@@ -42,6 +43,18 @@ model Proof {
   updatedAt   DateTime @updatedAt
   
   @@map("proofs")
+}
+
+model RefreshToken {
+  id         String   @id @default(cuid())
+  userId     String
+  tokenHash  String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  ip         String?
+  userAgent  String?
+  
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum ProofType {
