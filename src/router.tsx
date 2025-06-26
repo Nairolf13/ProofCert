@@ -20,6 +20,7 @@ const AppRouter: React.FC = () => {
       {isAuthenticated && <Navbar />}
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
+        <Route path="/login" element={<AuthPage />} />
         <Route path="/" element={<HomePage />} />
         <Route element={<PrivateRoute />}> 
           <Route path="/dashboard" element={<DashboardPage />} />

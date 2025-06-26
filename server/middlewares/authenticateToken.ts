@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import type { User } from '@prisma/client';
 
 const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || 'access-secret';
 
 export interface AuthenticatedRequest extends express.Request {
   user?: User;
@@ -24,7 +24,7 @@ const authenticateToken = (
 
   let decoded: { userId: string };
   try {
-    decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    decoded = jwt.verify(token, ACCESS_TOKEN_SECRET) as { userId: string };
   } catch {
     return res.status(403).json({ error: 'Invalid or expired token' });
   }

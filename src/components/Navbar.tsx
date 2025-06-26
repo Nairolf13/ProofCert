@@ -66,12 +66,9 @@ export const Navbar: React.FC = () => {
           <div className="flex items-center space-x-4">
             {isAuthenticated && user ? (
               <div className="flex items-center space-x-3">
-                <div className="flex items-center space-x-2">
-                  <UserIcon className="w-5 h-5 text-gray-400" />
-                  <span className="text-sm text-gray-700 font-medium">
-                    {user.walletAddress ? `${user.walletAddress.slice(0, 6)}...${user.walletAddress.slice(-4)}` : ''}
-                  </span>
-                </div>
+                <span className="text-sm text-gray-700 font-medium">
+                  {user.walletAddress ? `${user.walletAddress.slice(0, 6)}...${user.walletAddress.slice(-4)}` : ''}
+                </span>
                 <Button
                   variant="ghost"
                   size="sm"

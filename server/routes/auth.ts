@@ -47,6 +47,8 @@ router.post('/login', async (req, res) => {
     if (!user) return res.status(401).json({ error: 'Invalid credentials' });
     const isValidPassword = await bcrypt.compare(password, user.hashedPassword);
     if (!isValidPassword) return res.status(401).json({ error: 'Invalid credentials' });
+    // Supprime tous les anciens refresh tokens de l'utilisateur avant d'en créer un nouveau
+    await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
     const accessToken = generateAccessToken(user.id);
     const refreshToken = generateRefreshToken();
     const tokenHash = await hashToken(refreshToken);
@@ -61,10 +63,10 @@ router.post('/login', async (req, res) => {
     });
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === 'production' ? true : false,
       sameSite: 'strict',
       maxAge: 1000 * 60 * 60 * 24 * 7,
-      path: '/auth/refresh',
+      path: '/api/auth/refresh', // Correction ici
     });
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { hashedPassword, ...userWithoutPassword } = user;
@@ -80,16 +82,18 @@ router.post('/refresh', rateLimit({ windowMs: 60_000, max: 5 }), async (req, res
   try {
     const refreshToken = req.cookies.refreshToken;
     if (!refreshToken) return res.sendStatus(401);
-    // On doit trouver le refresh token correspondant à l'utilisateur et au token reçu
-    const dbToken = await prisma.refreshToken.findFirst({
-      where: {
-        tokenHash: await hashToken(refreshToken),
-        expiresAt: { gt: new Date() }
-      }
+    // Correction: bcrypt hash cannot be searched directly, must compare all valid tokens
+    const dbTokens = await prisma.refreshToken.findMany({
+      where: { expiresAt: { gt: new Date() } }
     });
+    let dbToken: typeof dbTokens[0] | null = null;
+    for (const tokenRecord of dbTokens) {
+      if (await compareToken(refreshToken, tokenRecord.tokenHash)) {
+        dbToken = tokenRecord;
+        break;
+      }
+    }
     if (!dbToken) return res.sendStatus(403);
-    const valid = await compareToken(refreshToken, dbToken.tokenHash);
-    if (!valid) return res.sendStatus(403);
     // Rotation: delete old, issue new
     await prisma.refreshToken.delete({ where: { id: dbToken.id } });
     const newRefreshToken = generateRefreshToken();
@@ -105,10 +109,10 @@ router.post('/refresh', rateLimit({ windowMs: 60_000, max: 5 }), async (req, res
     });
     res.cookie('refreshToken', newRefreshToken, {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === 'production' ? true : false,
       sameSite: 'strict',
       maxAge: 1000 * 60 * 60 * 24 * 7,
-      path: '/auth/refresh',
+      path: '/api/auth/refresh', // Correction ici
     });
     const accessToken = generateAccessToken(dbToken.userId);
     res.json({ accessToken });
@@ -122,9 +126,18 @@ router.post('/logout', async (req, res) => {
   try {
     const refreshToken = req.cookies.refreshToken;
     if (refreshToken) {
-      await prisma.refreshToken.deleteMany({ where: { /* Optionally: match by user, ip, or token hash */ } });
+      // Only delete the refresh token for this session
+      const dbTokens = await prisma.refreshToken.findMany({
+        where: { expiresAt: { gt: new Date() } }
+      });
+      for (const tokenRecord of dbTokens) {
+        if (await compareToken(refreshToken, tokenRecord.tokenHash)) {
+          await prisma.refreshToken.delete({ where: { id: tokenRecord.id } });
+          break;
+        }
+      }
     }
-    res.clearCookie('refreshToken', { path: '/auth/refresh' });
+    res.clearCookie('refreshToken', { path: '/api/auth/refresh' });
     res.sendStatus(204);
   } catch {
     res.status(500).json({ error: 'Internal server error' });

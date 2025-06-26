@@ -17,7 +17,7 @@ const api = axios.create({
   baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
   timeout: 15000,
-  withCredentials: false
+  withCredentials: true // Enable credentials (cookies) for all requests
 });
 
 api.interceptors.request.use((config) => {
@@ -39,6 +39,75 @@ const getErrorMessage = (error: unknown, defaultMessage: string): string => {
   }
   return defaultMessage;
 };
+
+// Add Axios response interceptor for automatic token refresh
+let isRefreshing = false;
+type FailedQueueItem = {
+  resolve: (token: string) => void;
+  reject: (error: unknown) => void;
+};
+let failedQueue: FailedQueueItem[] = [];
+
+const processQueue = (error: unknown, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else if (token) {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise<string>((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers['Authorization'] = 'Bearer ' + token;
+            return api(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+      originalRequest._retry = true;
+      isRefreshing = true;
+      try {
+        // Call refresh endpoint (must send cookies)
+        const refreshResponse = await axios.post(
+          API_BASE_URL + '/auth/refresh',
+          {},
+          { withCredentials: true }
+        );
+        console.log('[JWT REFRESH]', {
+          url: API_BASE_URL + '/auth/refresh',
+          response: refreshResponse.data,
+          cookies: document.cookie
+        });
+        const { accessToken: newToken } = refreshResponse.data;
+        localStorage.setItem('authToken', newToken);
+        api.defaults.headers.common['Authorization'] = 'Bearer ' + newToken;
+        processQueue(null, newToken);
+        return api({ ...originalRequest, headers: { ...originalRequest.headers, Authorization: 'Bearer ' + newToken } });
+      } catch (refreshError) {
+        console.error('[JWT REFRESH ERROR]', refreshError);
+        processQueue(refreshError, null);
+        // Logout user if refresh fails
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const userApi = {
   register: async (registerData: RegisterRequest): Promise<{ user: User; token: string }> => {
