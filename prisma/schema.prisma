@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  username        String   
+  hashedPassword  String   
+  walletAddress   String?  @unique 
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  profileImage    String? 
+  
+  proofs        Proof[]
+  
+  @@map("users")
+}
+
+model Proof {
+  id          String   @id @default(cuid())
+  title       String?
+  content     String?  @db.Text
+  contentType ProofType
+  hash        String   @unique
+  ipfsHash    String?
+  arweaveId   String?
+  timestamp   DateTime @default(now())
+  location    String? 
+  isPublic    Boolean  @default(false)
+  shareToken  String   @unique @default(cuid())
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("proofs")
+}
+
+enum ProofType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+}
