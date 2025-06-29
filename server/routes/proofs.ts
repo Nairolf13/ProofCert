@@ -5,7 +5,6 @@ import { authenticateToken } from '../middlewares/authenticateToken.ts';
 const router = Router();
 const prisma = new PrismaClient();
 
-// @ts-expect-error Express 5 type inference bug with custom req.user
 router.post('/', authenticateToken, (req, res) => {
   if (!req.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
   const userId = req.user.id;
@@ -23,7 +22,6 @@ router.post('/', authenticateToken, (req, res) => {
     .catch(() => { res.status(500).json({ error: 'Internal server error' }); });
 });
 
-// @ts-expect-error Express 5 type inference bug with custom req.user
 router.get('/', authenticateToken, (req, res) => {
   if (!req.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
   const userId = req.user.id;
@@ -35,7 +33,6 @@ router.get('/', authenticateToken, (req, res) => {
     .catch(() => { res.status(500).json({ error: 'Internal server error' }); });
 });
 
-// @ts-expect-error Express 5 type inference bug with custom req.user
 router.get('/:id', authenticateToken, (req, res) => {
   if (!req.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
   const { id } = req.params;
@@ -61,7 +58,6 @@ router.get('/share/:shareToken', (req, res) => {
     .catch(() => { res.status(500).json({ error: 'Internal server error' }); });
 });
 
-// @ts-expect-error Express 5 type inference bug with custom req.user
 router.delete('/:id', authenticateToken, (req, res) => {
   if (!req.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
   const { id } = req.params;

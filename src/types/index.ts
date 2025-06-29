@@ -71,3 +71,36 @@ export interface ShareableProof {
   isPublic: boolean;
   ipfsHash?: string;
 }
+
+export interface Property {
+  id: string;
+  title: string;
+  description?: string;
+  address: string;
+  country?: string;
+  region?: string;
+  city?: string;
+  area?: number; // superficie en m²
+  price?: number; // prix de la location
+  isAvailable?: boolean;
+  photos: string[];
+  ownerId: string;
+  owner?: User;
+  rentals?: Rental[];
+  proofs?: Proof[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Rental {
+  id: string;
+  propertyId: string;
+  tenantId: string;
+  startDate: string;
+  endDate?: string;
+  property?: Property;
+  tenant?: User;
+  proofs?: Proof[];
+  createdAt: string;
+  updatedAt: string;
+}

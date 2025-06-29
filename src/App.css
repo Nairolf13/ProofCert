@@ -40,3 +40,19 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Animations carrousel PropertyDetailPage */
+@keyframes slideLeft {
+  from { transform: translateX(100%); opacity: 0.7; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes slideRight {
+  from { transform: translateX(-100%); opacity: 0.7; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.animate-slide-left {
+  animation: slideLeft 0.35s cubic-bezier(0.4,0,0.2,1);
+}
+.animate-slide-right {
+  animation: slideRight 0.35s cubic-bezier(0.4,0,0.2,1);
+}

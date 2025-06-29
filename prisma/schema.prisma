@@ -19,6 +19,9 @@ model User {
   
   proofs        Proof[]
   refreshTokens  RefreshToken[]
+  role           Role      @default(TENANT)
+  properties     Property[] @relation("OwnerProperties")
+  rentals        Rental[]   @relation("TenantRentals")
   
   @@map("users")
 }
@@ -38,6 +41,10 @@ model Proof {
   
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  propertyId  String?
+  property    Property? @relation("PropertyProofs", fields: [propertyId], references: [id])
+  rentalId    String?
+  rental      Rental?   @relation("RentalProofs", fields: [rentalId], references: [id])
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -57,10 +64,48 @@ model RefreshToken {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model Property {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  address     String
+  country     String
+  region      String
+  city        String
+  area        Float   // superficie en m²
+  price       Float   // prix de la location
+  isAvailable Boolean  @default(true)
+  photos      String[]
+  ownerId     String
+  owner       User      @relation("OwnerProperties", fields: [ownerId], references: [id])
+  rentals     Rental[]
+  proofs      Proof[]   @relation("PropertyProofs")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Rental {
+  id          String    @id @default(cuid())
+  propertyId  String
+  tenantId    String
+  startDate   DateTime
+  endDate     DateTime?
+  property    Property  @relation(fields: [propertyId], references: [id])
+  tenant      User      @relation("TenantRentals", fields: [tenantId], references: [id])
+  proofs      Proof[]   @relation("RentalProofs")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
 enum ProofType {
   TEXT
   IMAGE
   VIDEO
   AUDIO
   DOCUMENT
+}
+
+enum Role {
+  OWNER
+  TENANT
 }

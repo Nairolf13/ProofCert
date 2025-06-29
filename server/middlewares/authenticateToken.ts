@@ -10,32 +10,31 @@ export interface AuthenticatedRequest extends express.Request {
   user?: User;
 }
 
-const authenticateToken = (
-  req: express.Request,
-  res: express.Response,
-  next: express.NextFunction
-) => {
+const authenticateToken: express.RequestHandler = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader?.split(' ')[1];
 
   if (!token) {
-    return res.status(401).json({ error: 'Access token required' });
+    res.status(401).json({ error: 'Access token required' });
+    return;
   }
 
   let decoded: { userId: string };
   try {
     decoded = jwt.verify(token, ACCESS_TOKEN_SECRET) as { userId: string };
   } catch {
-    return res.status(403).json({ error: 'Invalid or expired token' });
+    res.status(403).json({ error: 'Invalid or expired token' });
+    return;
   }
 
   prisma.user
     .findUnique({ where: { id: decoded.userId } })
     .then((user) => {
       if (!user) {
-        return res.status(401).json({ error: 'User not found' });
+        res.status(401).json({ error: 'User not found' });
+        return;
       }
-      (req as { user?: User }).user = user;
+      (req as AuthenticatedRequest).user = user;
       next();
     })
     .catch(() => res.status(500).json({ error: 'Internal server error' }));

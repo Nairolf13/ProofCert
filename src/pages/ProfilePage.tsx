@@ -1,13 +1,13 @@
 import React, { useRef, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
+import { Card, CardContent } from '../components/Card';
 import { Button } from '../components/Button';
-import { UserIcon, WalletIcon, CalendarIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
+import { UserIcon, WalletIcon, CalendarIcon, EnvelopeIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
 import { userApi } from '../api/user';
 
 const ProfilePage: React.FC = () => {
-  const { user, isAuthenticated, refreshUser } = useAuth();
+  const { user, isAuthenticated, refreshUser, disconnect } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -18,15 +18,12 @@ const ProfilePage: React.FC = () => {
     setIsUploading(true);
     setUploadError(null);
     try {
-      const url = 'https://placehold.co/96x96?text=TODO'; 
+      // TODO: upload to backend or IPFS, here just a placeholder
+      const url = 'https://placehold.co/96x96?text=TODO';
       await userApi.updateProfileImage(url);
       await refreshUser?.();
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setUploadError(err.message || 'Upload failed');
-      } else {
-        setUploadError('Upload failed');
-      }
+      setUploadError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setIsUploading(false);
     }
@@ -34,8 +31,8 @@ const ProfilePage: React.FC = () => {
 
   if (!isAuthenticated || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Card>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 via-white to-primary-100">
+        <Card className="backdrop-blur-xl bg-white/70 border border-white/40 shadow-xl rounded-2xl">
           <CardContent className="text-center">
             <UserIcon className="w-12 h-12 mx-auto text-gray-400 mb-4" />
             <h2 className="text-xl font-semibold mb-2">Not Authenticated</h2>
@@ -50,11 +47,13 @@ const ProfilePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-12">
-      <div className="max-w-xl mx-auto px-4">
-        <Card>
-          <CardHeader className="flex flex-col items-center pb-0">
-            <div className="relative w-24 h-24 rounded-full bg-primary-100 flex items-center justify-center mb-4 overflow-hidden shadow">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-100 flex items-center justify-center px-2 py-8 animate-fade-in">
+      <div className="w-full max-w-lg mx-auto">
+        <div className="relative rounded-3xl bg-white/60 backdrop-blur-xl border border-white/40 shadow-2xl p-8 flex flex-col items-center gap-6 glass-card">
+          {/* Avatar avec effet glow */}
+          <div className="relative group mb-2">
+            <div className="absolute -inset-1 rounded-full blur-xl bg-gradient-to-tr from-primary-300/60 to-primary-500/40 opacity-60 group-hover:opacity-90 transition" />
+            <div className="relative w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow-lg flex items-center justify-center bg-gradient-to-br from-primary-100 to-primary-200">
               {user.profileImage ? (
                 <img
                   src={user.profileImage}
@@ -63,13 +62,13 @@ const ProfilePage: React.FC = () => {
                   loading="lazy"
                 />
               ) : (
-                <UserIcon className="w-12 h-12 text-primary-600" />
+                <UserIcon className="w-14 h-14 text-primary-400" />
               )}
               <button
                 type="button"
-                className="absolute bottom-1 right-1 bg-white bg-opacity-80 rounded-full p-1 shadow hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="absolute bottom-2 right-2 bg-white/80 rounded-full p-1.5 shadow hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-primary-400"
                 onClick={() => fileInputRef.current?.click()}
-                aria-label="Change profile picture"
+                aria-label="Changer la photo de profil"
                 disabled={isUploading}
               >
                 <svg className="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6-6m2 2a2.828 2.828 0 11-4-4 2.828 2.828 0 014 4z" /></svg>
@@ -83,29 +82,46 @@ const ProfilePage: React.FC = () => {
                 disabled={isUploading}
               />
             </div>
-            {isUploading && <div className="text-xs text-primary-600 mt-1">Uploading...</div>}
-            {uploadError && <div className="text-xs text-red-500 mt-1">{uploadError}</div>}
-            <CardTitle className="text-2xl text-center mb-1 truncate max-w-xs">{user.username || user.email}</CardTitle>
-            <p className="text-gray-500 text-sm text-center mb-2 truncate max-w-xs">{user.email}</p>
-          </CardHeader>
-          <CardContent className="space-y-6 pt-0">
-            <div className="flex items-center gap-3">
-              <WalletIcon className="w-5 h-5 text-primary-500" />
-              <span className="text-gray-700 font-medium">Wallet:</span>
-              <span className="font-mono text-xs text-gray-600 truncate">{user.walletAddress ? user.walletAddress : 'Not connected'}</span>
+          </div>
+          {isUploading && <div className="text-xs text-primary-600 mt-1">Uploading...</div>}
+          {uploadError && <div className="text-xs text-red-500 mt-1">{uploadError}</div>}
+
+          {/* Infos utilisateur */}
+          <div className="flex flex-col items-center gap-1 w-full">
+            <span className="text-2xl font-bold text-gray-900 mb-0.5 truncate max-w-xs drop-shadow-sm">{user.username || user.email}</span>
+            <span className="text-gray-500 text-sm truncate max-w-xs mb-2">{user.email}</span>
+            <div className="flex flex-wrap gap-2 justify-center mt-2">
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary-50 text-primary-700 text-xs font-medium shadow-sm border border-primary-100">
+                <WalletIcon className="w-4 h-4" />
+                {user.walletAddress ? user.walletAddress : 'Wallet non connecté'}
+              </span>
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary-50 text-primary-700 text-xs font-medium shadow-sm border border-primary-100">
+                <CalendarIcon className="w-4 h-4" />
+                Membre depuis {new Date(user.createdAt).toLocaleDateString()}
+              </span>
             </div>
-            <div className="flex items-center gap-3">
-              <CalendarIcon className="w-5 h-5 text-primary-500" />
-              <span className="text-gray-700 font-medium">Member since:</span>
-              <span className="text-gray-600">{new Date(user.createdAt).toLocaleDateString()}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <EnvelopeIcon className="w-5 h-5 text-primary-500" />
-              <span className="text-gray-700 font-medium">User ID:</span>
-              <span className="font-mono text-xs text-gray-600 truncate">{user.id}</span>
-            </div>
-          </CardContent>
-        </Card>
+            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gray-100 text-gray-500 text-xs font-mono mt-2 border border-gray-200">
+              <EnvelopeIcon className="w-4 h-4" />
+              ID: {user.id}
+            </span>
+          </div>
+
+          {/* Actions */}
+          <div className="flex flex-col sm:flex-row gap-3 w-full mt-6">
+            <Button
+              className="w-full sm:w-auto flex-1 bg-gradient-to-r from-primary-500 to-primary-400 text-white shadow-lg hover:from-primary-600 hover:to-primary-500 focus:ring-2 focus:ring-primary-400"
+              onClick={disconnect}
+              leftIcon={<ArrowRightOnRectangleIcon className="w-5 h-5" />}
+            >
+              Se déconnecter
+            </Button>
+            <Link to="/dashboard" className="w-full sm:w-auto flex-1">
+              <Button variant="secondary" className="w-full">
+                Retour au dashboard
+              </Button>
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -6,14 +6,11 @@ import { authenticateToken } from '../middlewares/authenticateToken.ts';
 import rateLimit from 'express-rate-limit';
 import { generateAccessToken, generateRefreshToken } from '../utils/jwt.ts';
 import { hashToken, compareToken } from '../utils/hash.ts';
+import propertyRentalRouter from './propertyRental.ts';
 
 const router = Router();
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-
-// Middleware global (à mettre dans server.ts)
-// app.use(helmet());
-// app.use(cookieParser());
 
 router.post('/register', (async (req, res) => {
   try {
@@ -35,7 +32,6 @@ router.post('/register', (async (req, res) => {
   }
 }) as import('express').RequestHandler);
 
-// LOGIN
 // @ts-expect-error Express 5 async handler type workaround
 router.post('/login', async (req, res) => {
   try {
@@ -47,7 +43,6 @@ router.post('/login', async (req, res) => {
     if (!user) return res.status(401).json({ error: 'Invalid credentials' });
     const isValidPassword = await bcrypt.compare(password, user.hashedPassword);
     if (!isValidPassword) return res.status(401).json({ error: 'Invalid credentials' });
-    // Supprime tous les anciens refresh tokens de l'utilisateur avant d'en créer un nouveau
     await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
     const accessToken = generateAccessToken(user.id);
     const refreshToken = generateRefreshToken();
@@ -66,7 +61,7 @@ router.post('/login', async (req, res) => {
       secure: process.env.NODE_ENV === 'production' ? true : false,
       sameSite: 'strict',
       maxAge: 1000 * 60 * 60 * 24 * 7,
-      path: '/api/auth/refresh', // Correction ici
+      path: '/api/auth/refresh', 
     });
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { hashedPassword, ...userWithoutPassword } = user;
@@ -76,7 +71,6 @@ router.post('/login', async (req, res) => {
   }
 }) as import('express').RequestHandler;
 
-// REFRESH
 // @ts-expect-error Express 5 async handler type workaround
 router.post('/refresh', rateLimit({ windowMs: 60_000, max: 5 }), async (req, res) => {
   try {
@@ -121,12 +115,10 @@ router.post('/refresh', rateLimit({ windowMs: 60_000, max: 5 }), async (req, res
   }
 }) as import('express').RequestHandler;
 
-// LOGOUT
 router.post('/logout', async (req, res) => {
   try {
     const refreshToken = req.cookies.refreshToken;
     if (refreshToken) {
-      // Only delete the refresh token for this session
       const dbTokens = await prisma.refreshToken.findMany({
         where: { expiresAt: { gt: new Date() } }
       });
@@ -144,7 +136,6 @@ router.post('/logout', async (req, res) => {
   }
 }) as import('express').RequestHandler;
 
-// @ts-expect-error Express 5 type inference bug with custom req.user
 router.post('/connect-wallet', authenticateToken, ((req, res) => {
   if (!req.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
   const { walletAddress } = req.body;
@@ -158,7 +149,6 @@ router.post('/connect-wallet', authenticateToken, ((req, res) => {
     .catch(() => { res.status(500).json({ error: 'Internal server error' }); });
 }) as import('express').RequestHandler);
 
-// @ts-expect-error Express 5 type inference bug with custom req.user
 router.get('/me', authenticateToken, ((req, res) => {
   if (!req.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
   const userWithoutPassword = { ...req.user };
@@ -184,5 +174,29 @@ router.patch('/profile-image', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 }) as import('express').RequestHandler;
+
+// PATCH /api/auth/role : permet à un utilisateur de devenir OWNER (ou de changer de rôle)
+router.patch('/role', authenticateToken, async (req, res) => {
+  if (!req.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  const { role } = req.body;
+  if (!role || (role !== 'OWNER' && role !== 'TENANT')) {
+    res.status(400).json({ error: 'Invalid role' }); return;
+  }
+  try {
+    const updatedUser = await prisma.user.update({
+      where: { id: req.user.id },
+      data: { role },
+      select: { id: true, email: true, username: true, walletAddress: true, createdAt: true, updatedAt: true, role: true }
+    });
+    // Générer un nouveau token JWT avec le rôle mis à jour
+    const accessToken = generateAccessToken(updatedUser.id);
+    res.json({ user: updatedUser, accessToken });
+  } catch {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}) as import('express').RequestHandler;
+
+// Ajoute ce router à l'export (à utiliser dans server.ts)
+export { propertyRentalRouter };
 
 export default router;

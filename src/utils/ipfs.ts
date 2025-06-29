@@ -1,27 +1,39 @@
-export const uploadToIPFS = async (file: File): Promise<string> => {
-  try {
-    console.log('Uploading to IPFS:', file.name);
-    
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    return `Qm${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
-  } catch (error) {
-    console.error('IPFS upload failed:', error);
-    throw new Error('Failed to upload to IPFS');
-  }
-};
+export async function uploadToIPFS(file: File): Promise<string> {
+  const apiKey = import.meta.env.VITE_PINATA_API_KEY;
+  const url = 'https://api.pinata.cloud/pinning/pinFileToIPFS';
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: formData,
+  });
+
+  if (!res.ok) throw new Error('Erreur upload Pinata: ' + (await res.text()));
+  const data = await res.json();
+  return data.IpfsHash;
+}
 
 export const uploadTextToIPFS = async (text: string): Promise<string> => {
-  try {
-    console.log('Uploading text to IPFS:', text.length, 'characters');
-    
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    return `Qm${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
-  } catch (error) {
-    console.error('IPFS text upload failed:', error);
-    throw new Error('Failed to upload text to IPFS');
-  }
+  const apiKey = import.meta.env.VITE_PINATA_API_KEY;
+  const url = 'https://api.pinata.cloud/pinning/pinFileToIPFS';
+  const file = new File([text], 'text.txt', { type: 'text/plain' });
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: formData,
+  });
+  if (!res.ok) throw new Error('Erreur upload Pinata: ' + (await res.text()));
+  const data = await res.json();
+  return data.IpfsHash;
 };
 
 export const getIPFSUrl = (hash: string): string => {

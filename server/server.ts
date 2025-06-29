@@ -4,6 +4,7 @@ import authRoutes from './routes/auth.ts';
 import proofsRoutes from './routes/proofs.ts';
 import helmet from 'helmet';
 import cookie from 'cookie';
+import { propertyRentalRouter } from './routes/auth.ts';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -31,6 +32,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/proofs', proofsRoutes);
 app.use('/api/share', proofsRoutes);
+app.use('/api', propertyRentalRouter);
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);

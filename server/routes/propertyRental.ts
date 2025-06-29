@@ -1,0 +1,207 @@
+import { Router } from 'express';
+import { PrismaClient } from '@prisma/client';
+import { authenticateToken } from '../middlewares/authenticateToken.ts';
+
+const router = Router();
+const prisma = new PrismaClient();
+
+type Role = 'OWNER' | 'TENANT';
+
+// Middleware de rôle
+function requireRole(role: Role) {
+  return (req, res, next) => {
+    const user = req.user;
+    if (!user || user.role !== role) {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+    next();
+  };
+}
+
+// Créer un bien (propriétaire)
+router.post('/properties', authenticateToken, requireRole('OWNER'), async (req, res) => {
+  const user = req.user;
+  try {
+    if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const { title, description, address, photos, country, region, city, area, price, isAvailable } = req.body;
+    const property = await prisma.property.create({
+      data: {
+        title,
+        description,
+        address,
+        photos,
+        country,
+        region,
+        city,
+        area,
+        price,
+        isAvailable,
+        ownerId: user.id,
+      }
+    });
+    res.status(201).json(property);
+  } catch {
+    res.status(500).json({ error: 'Erreur serveur lors de la création du bien' });
+  }
+});
+
+// Lister les biens (uniquement ceux de l'utilisateur connecté si OWNER)
+router.get('/properties', authenticateToken, async (req, res) => {
+  const user = req.user;
+  try {
+    if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    let properties;
+    if (user.role === 'OWNER') {
+      properties = await prisma.property.findMany({ where: { ownerId: user.id }, include: { owner: true } });
+    } else {
+      properties = await prisma.property.findMany({ include: { owner: true } });
+    }
+    res.json(properties);
+  } catch {
+    res.status(500).json({ error: 'Erreur serveur lors de la récupération des biens' });
+  }
+});
+
+// Détail d'un bien (accessible à tout utilisateur connecté)
+router.get('/properties/:id', authenticateToken, async (req, res) => {
+  const user = req.user;
+  try {
+    if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const property = await prisma.property.findUnique({ where: { id: req.params.id }, include: { owner: true, proofs: true } });
+    if (!property) { res.status(404).json({ error: 'Not found' }); return; }
+    // Plus de restriction d'accès ici : tout utilisateur connecté peut voir le détail
+    res.json(property);
+  } catch {
+    res.status(500).json({ error: 'Erreur serveur lors de la récupération du bien' });
+  }
+});
+
+// Mettre à jour un bien (OWNER uniquement)
+router.put('/properties/:id', authenticateToken, requireRole('OWNER'), async (req, res) => {
+  const user = req.user;
+  try {
+    if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const { id } = req.params;
+    // Vérifie que le bien appartient à l'utilisateur
+    const property = await prisma.property.findUnique({ where: { id } });
+    if (!property) { res.status(404).json({ error: 'Not found' }); return; }
+    if (property.ownerId !== user.id) { res.status(403).json({ error: 'Forbidden' }); return; }
+    const { title, description, address, photos } = req.body;
+    const updated = await prisma.property.update({
+      where: { id },
+      data: { title, description, address, photos },
+    });
+    res.json(updated);
+  } catch {
+    res.status(500).json({ error: 'Erreur serveur lors de la mise à jour du bien' });
+  }
+});
+
+// Supprimer un bien (OWNER uniquement)
+router.delete('/properties/:id', authenticateToken, requireRole('OWNER'), async (req, res) => {
+  const user = req.user;
+  try {
+    if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const { id } = req.params;
+    // Vérifie que le bien appartient à l'utilisateur
+    const property = await prisma.property.findUnique({ where: { id } });
+    if (!property) { res.status(404).json({ error: 'Not found' }); return; }
+    if (property.ownerId !== user.id) { res.status(403).json({ error: 'Forbidden' }); return; }
+    await prisma.property.delete({ where: { id } });
+    res.status(204).send();
+  } catch {
+    res.status(500).json({ error: 'Erreur serveur lors de la suppression du bien' });
+  }
+});
+
+// Créer une location (rental)
+router.post('/rentals', authenticateToken, requireRole('OWNER'), async (req, res) => {
+  try {
+    const { propertyId, tenantId, startDate, endDate } = req.body;
+    const rental = await prisma.rental.create({
+      data: {
+        propertyId,
+        tenantId,
+        startDate: new Date(startDate),
+        endDate: endDate ? new Date(endDate) : null,
+      }
+    });
+    res.status(201).json(rental);
+  } catch {
+    res.status(500).json({ error: 'Erreur serveur lors de la création de la location' });
+  }
+});
+
+// Lister les locations de l'utilisateur
+router.get('/rentals', authenticateToken, async (req, res) => {
+  const user = req.user;
+  try {
+    if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    let rentals;
+    if (user.role === 'OWNER') {
+      rentals = await prisma.rental.findMany({ where: { property: { ownerId: user.id } }, include: { property: true, tenant: true } });
+    } else {
+      rentals = await prisma.rental.findMany({ where: { tenantId: user.id }, include: { property: true, tenant: true } });
+    }
+    res.json(rentals);
+  } catch {
+    res.status(500).json({ error: 'Erreur serveur lors de la récupération des locations' });
+  }
+});
+
+// Ajouter une preuve (propriétaire ou locataire)
+router.post('/proofs', authenticateToken, async (req, res) => {
+  const user = req.user;
+  try {
+    if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const { title, description, contentType, hash, ipfsHash, propertyId, rentalId, isPublic } = req.body;
+    const proof = await prisma.proof.create({
+      data: {
+        title,
+        // @ts-expect-error: Prisma schema may not have description, remove if not needed
+        description,
+        contentType,
+        hash,
+        ipfsHash,
+        userId: user.id,
+        propertyId,
+        rentalId,
+        isPublic: !!isPublic,
+      }
+    });
+    res.status(201).json(proof);
+  } catch {
+    res.status(500).json({ error: 'Erreur serveur lors de la création de la preuve' });
+  }
+});
+
+// Lister les preuves d'un bien ou d'une location (filtrage par user)
+router.get('/proofs', authenticateToken, async (req, res) => {
+  const user = req.user;
+  try {
+    if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const { propertyId, rentalId } = req.query;
+    const where: Record<string, unknown> = {};
+    if (propertyId) where.propertyId = propertyId;
+    if (rentalId) where.rentalId = rentalId;
+    // Filtrage : un OWNER ne voit que ses preuves ou celles liées à ses biens, un TENANT que les siennes ou celles liées à ses locations
+    if (user.role === 'OWNER') {
+      where.OR = [
+        { userId: user.id },
+        { property: { ownerId: user.id } }
+      ];
+    } else if (user.role === 'TENANT') {
+      where.OR = [
+        { userId: user.id },
+        { rental: { tenantId: user.id } }
+      ];
+    }
+    const proofs = await prisma.proof.findMany({ where, include: { property: true, rental: true } });
+    res.json(proofs);
+  } catch {
+    res.status(500).json({ error: 'Erreur serveur lors de la récupération des preuves' });
+  }
+});
+
+export default router;
