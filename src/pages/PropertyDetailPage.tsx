@@ -1,26 +1,74 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { propertyApi } from '../api/property';
-import type { Property } from '../types';
+import { rentalApi } from '../api/rental';
+import type { Property, Review, Rental } from '../types';
 import { Button } from '../components/Button';
 import { useAuth } from '../hooks/useAuth';
-import { UserIcon, HomeIcon, CheckCircleIcon, XCircleIcon, CalendarIcon, CurrencyEuroIcon, MapPinIcon, Squares2X2Icon } from '@heroicons/react/24/outline';
+import { PropertyHeader } from '../components/PropertyHeader';
+import { PropertyGallery } from '../components/PropertyGallery';
+import { PropertyDetailsCard } from '../components/PropertyDetailsCard';
+import { PropertyReviewsSection } from '../components/PropertyReviewsSection';
+import { Calendar } from '../components/Calendar';
+
+// Type de données pour l'édition d'un bien
+interface EditPropertyData {
+  title: string;
+  address: string;
+  country: string;
+  region: string;
+  city: string;
+  area: number | '';
+  price: number | '';
+  pricePeriod: 'MONTH' | 'WEEK' | 'DAY';
+  isAvailable: boolean;
+  description: string;
+}
+
+const AMENITIES_LABELS: Record<string, string> = {
+  Pool: 'Piscine',
+  Wifi: 'Wifi',
+  TV: 'TV',
+  Kitchen: 'Cuisine',
+  Washer: 'Lave-linge',
+  'Free parking': 'Parking gratuit',
+  AirConditioning: 'Climatisation',
+  Heating: 'Chauffage',
+  Elevator: 'Ascenseur',
+  // Ajoute d'autres si besoin
+};
 
 export const PropertyDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [property, setProperty] = useState<Property | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState<{ title: string; description?: string; address: string }>({ title: '', address: '', description: '' });
+  const [editData, setEditData] = useState<EditPropertyData>({
+    title: '',
+    address: '',
+    country: '',
+    region: '',
+    city: '',
+    area: '',
+    price: '',
+    pricePeriod: 'MONTH',
+    isAvailable: true,
+    description: '',
+  });
+  const [editPhotoFiles, setEditPhotoFiles] = useState<File[]>([]);
+  const [editAmenities, setEditAmenities] = useState<string[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentPhoto, setCurrentPhoto] = useState(0);
   const [animDirection, setAnimDirection] = useState<'left' | 'right' | null>(null);
-  const touchStartX = useRef<number | null>(null);
-  const touchEndX = useRef<number | null>(null);
-  const [zoomed, setZoomed] = useState(false);
-  const zoomOverlayRef = useRef<HTMLDivElement>(null);
+  const [zoomed, setZoomed] = React.useState(false);
+  const zoomOverlayRef = React.useRef<HTMLDivElement>(null);
+  const [calendarMessage, setCalendarMessage] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [isBooking, setIsBooking] = useState(false);
+  const [reviews, setReviews] = useState<Review[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -28,17 +76,63 @@ export const PropertyDetailPage: React.FC = () => {
     propertyApi.getById(id)
       .then((prop) => {
         setProperty(prop);
-        setEditData({ title: prop.title, address: prop.address, description: prop.description });
+        setEditData({
+          title: prop.title || '',
+          address: prop.address || '',
+          country: prop.country || '',
+          region: prop.region || '',
+          city: prop.city || '',
+          area: prop.area ?? '',
+          price: prop.price ?? '',
+          pricePeriod: prop.pricePeriod || 'MONTH',
+          isAvailable: prop.isAvailable ?? true,
+          description: prop.description || '',
+        });
       })
       .catch(() => setError('Erreur lors du chargement du bien'))
       .finally(() => setIsLoading(false));
-  }, [id]);
+    // Récupère les avis
+    propertyApi.getReviews(id).then(setReviews).catch(() => {});
+  }, [id, isEditing, isBooking]);
+
+  useEffect(() => {
+    if (property && isEditing) {
+      setEditData({
+        title: property.title || '',
+        address: property.address || '',
+        country: property.country || '',
+        region: property.region || '',
+        city: property.city || '',
+        area: property.area ?? '',
+        price: property.price ?? '',
+        pricePeriod: property.pricePeriod || 'MONTH',
+        isAvailable: property.isAvailable ?? true,
+        description: property.description || '',
+      });
+      setEditAmenities(property.amenities || []);
+      setEditPhotoFiles([]);
+    }
+  }, [property, isEditing]);
 
   const handleEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!property) return;
     try {
-      const updated = await propertyApi.update(property.id, editData);
+      let photoUrls = property.photos || [];
+      if (editPhotoFiles.length > 0) {
+        const uploads = await Promise.all(editPhotoFiles.map(async (file) => {
+          const hash = await import('../utils/ipfs').then(m => m.uploadToIPFS(file));
+          return `https://ipfs.io/ipfs/${hash}`;
+        }));
+        photoUrls = uploads;
+      }
+      const updated = await propertyApi.update(property.id, {
+        ...editData,
+        area: Number(editData.area),
+        price: Number(editData.price),
+        amenities: editAmenities,
+        photos: photoUrls,
+      });
       setProperty(updated);
       setIsEditing(false);
     } catch {
@@ -59,33 +153,7 @@ export const PropertyDetailPage: React.FC = () => {
     }
   };
 
-  // Gestion swipe tactile
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-  };
-  const handleTouchMove = (e: React.TouchEvent) => {
-    touchEndX.current = e.touches[0].clientX;
-  };
-  const handleTouchEnd = () => {
-    if (touchStartX.current !== null && touchEndX.current !== null) {
-      const delta = touchEndX.current - touchStartX.current;
-      if (Math.abs(delta) > 50) {
-        if (delta < 0) {
-          // Swipe gauche → image suivante
-          setAnimDirection('left');
-          setCurrentPhoto((prev) => prev === property!.photos.length - 1 ? 0 : prev + 1);
-        } else {
-          // Swipe droite → image précédente
-          setAnimDirection('right');
-          setCurrentPhoto((prev) => prev === 0 ? property!.photos.length - 1 : prev - 1);
-        }
-      }
-    }
-    touchStartX.current = null;
-    touchEndX.current = null;
-  };
-
-  // Fermer le zoom plein écran (clic fond ou Echap)
+  // Gestion du zoom plein écran
   useEffect(() => {
     if (!zoomed) return;
     const handleKey = (e: KeyboardEvent) => {
@@ -95,36 +163,11 @@ export const PropertyDetailPage: React.FC = () => {
     return () => document.removeEventListener('keydown', handleKey);
   }, [zoomed]);
 
-  // Swipe dans le zoom overlay (mobile)
-  const zoomTouchStartX = useRef<number | null>(null);
-  const zoomTouchEndX = useRef<number | null>(null);
-  const handleZoomTouchStart = (e: React.TouchEvent) => {
-    zoomTouchStartX.current = e.touches[0].clientX;
-  };
-  const handleZoomTouchMove = (e: React.TouchEvent) => {
-    zoomTouchEndX.current = e.touches[0].clientX;
-  };
-  const handleZoomTouchEnd = () => {
-    if (zoomTouchStartX.current !== null && zoomTouchEndX.current !== null) {
-      const delta = zoomTouchEndX.current - zoomTouchStartX.current;
-      if (Math.abs(delta) > 50) {
-        if (delta < 0) {
-          setCurrentPhoto((prev) => prev === property!.photos.length - 1 ? 0 : prev + 1);
-        } else {
-          setCurrentPhoto((prev) => prev === 0 ? property!.photos.length - 1 : prev - 1);
-        }
-      }
-    }
-    zoomTouchStartX.current = null;
-    zoomTouchEndX.current = null;
-  };
-
   // Animation slide/fade
   useEffect(() => {
-    if (animDirection) {
-      const timeout = setTimeout(() => setAnimDirection(null), 350);
-      return () => clearTimeout(timeout);
-    }
+    if (!animDirection) return;
+    const timeout = setTimeout(() => setAnimDirection(null), 350);
+    return () => clearTimeout(timeout);
   }, [animDirection, currentPhoto]);
 
   if (isLoading) return <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div></div>;
@@ -132,217 +175,390 @@ export const PropertyDetailPage: React.FC = () => {
   if (!property) return <div className="text-center text-gray-400 py-16 text-lg">Bien introuvable</div>;
 
   const isOwner = user && user.id === property.ownerId;
+  // Correction : définir propertyRentals à [] si rentals n'est pas défini
+  const propertyRentals: Rental[] = property && Array.isArray(property.rentals) ? property.rentals : [];
+
+  function isRangeAvailable(start: string, end: string) {
+    const s = new Date(start);
+    const e = new Date(end);
+    return !propertyRentals.some((r: Rental) => {
+      const rs = new Date(r.startDate);
+      const re = r.endDate ? new Date(r.endDate) : rs;
+      return (s <= re && e >= rs);
+    });
+  }
+
+  const handleBooking = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!property || !user) {
+      setCalendarMessage("Vous devez être connecté pour réserver.");
+      return;
+    }
+    if (!startDate || !endDate) {
+      setCalendarMessage("Veuillez choisir une date de début et de fin.");
+      return;
+    }
+    if (new Date(startDate) > new Date(endDate)) {
+      setCalendarMessage("La date de fin doit être après la date de début.");
+      return;
+    }
+    if (!isRangeAvailable(startDate, endDate)) {
+      setCalendarMessage("Ce créneau n'est pas disponible. Veuillez choisir d'autres dates.");
+      return;
+    }
+    setIsBooking(true);
+    try {
+      const currentUser = user;
+      if (user.role !== 'OWNER') {
+        await propertyApi.promoteToOwner();
+        if (typeof refreshUser === 'function') {
+          await refreshUser();
+        }
+      }
+      await rentalApi.create({ propertyId: property.id, tenantId: currentUser.id, startDate, endDate });
+      setCalendarMessage("Réservation effectuée avec succès !");
+      setStartDate(''); setEndDate('');
+      setTimeout(() => setCalendarMessage(null), 3000);
+      // Ajout : refetch du bien pour mettre à jour les réservations
+      const updatedProperty = await propertyApi.getById(property.id);
+      setProperty(updatedProperty);
+    } catch (err: unknown) {
+      let status: number | undefined;
+      if (typeof err === 'object' && err !== null && 'response' in err) {
+        const response = (err as { response?: { status?: number } }).response;
+        if (response && typeof response.status === 'number') {
+          status = response.status;
+        }
+      }
+      if (status === 403) {
+        setCalendarMessage("Vous n'avez pas les droits pour réserver ce bien.");
+      } else {
+        setCalendarMessage("Erreur lors de la réservation.");
+      }
+    } finally {
+      setIsBooking(false);
+    }
+  };
+
+  // Suppression d'un avis
+  const handleDeleteReview = async (reviewId: string) => {
+    try {
+      await propertyApi.deleteReview(reviewId);
+      const updated = await propertyApi.getReviews(property!.id);
+      setReviews(updated);
+    } catch {
+      alert("Erreur lors de la suppression de l'avis.");
+    }
+  };
 
   return (
-    <div className="w-full max-w-5xl mx-auto py-10 px-2 md:px-8 animate-fade-in">
-      {/* Header visuel */}
-      <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-10">
-        <div className="flex-1 min-w-0">
-          <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 drop-shadow-sm flex items-center gap-4 mb-2">
-            <HomeIcon className="w-10 h-10 text-primary-500" />
-            <span className="truncate">{property.title}</span>
-          </h1>
-          <div className="flex flex-wrap gap-2 items-center mb-2">
-            <span className={`inline-flex items-center gap-1 px-4 py-1 rounded-full text-sm font-semibold shadow border ${property.isAvailable ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-600 border-red-200'}`}>{property.isAvailable ? <CheckCircleIcon className="w-5 h-5" /> : <XCircleIcon className="w-5 h-5" />} {property.isAvailable ? 'Disponible' : 'Non disponible'}</span>
-            <span className="inline-flex items-center gap-1 px-4 py-1 rounded-full bg-primary-50 text-primary-700 text-sm font-medium shadow border border-primary-100">
-              <CalendarIcon className="w-5 h-5" />
-              Ajouté le {new Date(property.createdAt).toLocaleDateString()}
-            </span>
-            <span className="inline-flex items-center gap-1 px-4 py-1 rounded-full bg-blue-50 text-blue-700 text-sm font-medium shadow border border-blue-100">
-              <CurrencyEuroIcon className="w-5 h-5" />
-              <span className="font-bold">{property.price} €</span>
-            </span>
-            <span className="inline-flex items-center gap-1 px-4 py-1 rounded-full bg-purple-50 text-purple-700 text-sm font-medium shadow border border-purple-100">
-              <Squares2X2Icon className="w-5 h-5" />
-              <span className="font-bold">{property.area} m²</span>
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-2 items-center text-gray-500 text-base mb-1">
-            <MapPinIcon className="w-5 h-5 text-primary-400" />
-            <span className="font-medium">{property.address}</span>
-            <span className="text-gray-400">{property.city}</span>
-            <span className="text-gray-400">{property.region}</span>
-            <span className="text-gray-400">{property.country}</span>
-          </div>
+    <div className="w-full max-w-5xl mx-auto py-6 px-2 md:px-8 animate-fade-in flex flex-col gap-10">
+      {/* HEADER ULTRA VISUEL */}
+      <PropertyHeader
+        title={property.title || ''}
+        isAvailable={!!property.isAvailable}
+        price={property.price ?? 0}
+        pricePeriod={property.pricePeriod || ''}
+        area={property.area ?? 0}
+        address={property.address || ''}
+        city={property.city || ''}
+        region={property.region || ''}
+        country={property.country || ''}
+        createdAt={property.createdAt || ''}
+        owner={property.owner}
+      />
+
+      {/* SECTION PRINCIPALE façon "Airbnb premium" : galerie immersive, infos/services/description/actions en dessous */}
+      <section className="w-full max-w-5xl flex flex-col gap-10 items-center md:items-start mx-auto">
+        {/* GALERIE PHOTOS ENTIÈRE, MODERNE, AVEC MINIATURES */}
+        <div className="w-full max-w-5xl flex flex-col items-center justify-start mx-auto">
+          <PropertyGallery
+            photos={property.photos || []}
+            currentPhoto={currentPhoto}
+            setCurrentPhoto={setCurrentPhoto}
+            animDirection={animDirection}
+            zoomed={zoomed}
+            setZoomed={setZoomed}
+            zoomOverlayRef={zoomOverlayRef as React.RefObject<HTMLDivElement>}
+            title={property.title || ''}
+          />
         </div>
-        {/* Propriétaire */}
-        {property.owner && (
-          <div className="flex flex-col items-end gap-2 min-w-[180px]">
-            <div className="flex items-center gap-2 bg-white/70 backdrop-blur rounded-xl px-4 py-2 shadow border border-gray-100">
-              <UserIcon className="w-7 h-7 text-primary-400" />
-              <div className="flex flex-col">
-                <span className="font-semibold text-gray-900">{property.owner.username || property.owner.email}</span>
-                <span className="text-xs text-gray-500">Propriétaire</span>
+        {/* SERVICES/AGRÉMENTS + DESCRIPTION + ACTIONS EN DESSOUS DES PHOTOS */}
+        <div className="w-full max-w-5xl flex flex-col gap-8 items-stretch justify-start mx-auto">
+          <PropertyDetailsCard
+            amenities={property.amenities || []}
+            amenitiesLabels={AMENITIES_LABELS}
+            description={property.description || ''}
+            isOwner={!!isOwner}
+            isEditing={isEditing}
+            isDeleting={isDeleting}
+            onEdit={() => setIsEditing(true)}
+            onDelete={handleDelete}
+          />
+        </div>
+      </section>
+
+      {/* MODAL EDITION */}
+      {isEditing && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4 text-center">
+            <div className="w-full max-w-2xl transform overflow-hidden rounded-3xl bg-white p-8 text-left align-middle shadow-2xl transition-all flex flex-col gap-6">
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-2xl font-bold leading-6 text-primary-700">Modifier le bien</h3>
+                <button onClick={() => setIsEditing(false)} className="text-gray-400 hover:text-primary-500 text-2xl font-bold focus:outline-none">×</button>
               </div>
+              <form onSubmit={handleEdit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-primary-700 font-semibold mb-1">Titre</label>
+                    <input type="text" className="w-full border-2 border-primary-200 rounded-xl p-3" value={editData.title} onChange={e => setEditData({ ...editData, title: e.target.value })} required />
+                  </div>
+                  <div>
+                    <label className="block text-primary-700 font-semibold mb-1">Adresse</label>
+                    <input type="text" className="w-full border-2 border-primary-200 rounded-xl p-3" value={editData.address} onChange={e => setEditData({ ...editData, address: e.target.value })} required />
+                  </div>
+                  <div>
+                    <label className="block text-primary-700 font-semibold mb-1">Pays</label>
+                    <input type="text" className="w-full border-2 border-primary-200 rounded-xl p-3" value={editData.country} onChange={e => setEditData({ ...editData, country: e.target.value })} required />
+                  </div>
+                  <div>
+                    <label className="block text-primary-700 font-semibold mb-1">Région</label>
+                    <input type="text" className="w-full border-2 border-primary-200 rounded-xl p-3" value={editData.region} onChange={e => setEditData({ ...editData, region: e.target.value })} required />
+                  </div>
+                  <div>
+                    <label className="block text-primary-700 font-semibold mb-1">Ville</label>
+                    <input type="text" className="w-full border-2 border-primary-200 rounded-xl p-3" value={editData.city} onChange={e => setEditData({ ...editData, city: e.target.value })} required />
+                  </div>
+                  <div>
+                    <label className="block text-primary-700 font-semibold mb-1">Surface (m²)</label>
+                    <input type="number" min="0" className="w-full border-2 border-primary-200 rounded-xl p-3" value={editData.area} onChange={e => setEditData({ ...editData, area: e.target.value === '' ? '' : Number(e.target.value) })} required />
+                  </div>
+                  <div>
+                    <label className="block text-primary-700 font-semibold mb-1">Prix (€)</label>
+                    <input type="number" min="0" className="w-full border-2 border-primary-200 rounded-xl p-3" value={editData.price} onChange={e => setEditData({ ...editData, price: e.target.value === '' ? '' : Number(e.target.value) })} required />
+                  </div>
+                  <div>
+                    <label className="block text-primary-700 font-semibold mb-1">Période de prix</label>
+                    <select
+                      className="w-full border-2 border-primary-200 rounded-xl p-3"
+                      value={editData.pricePeriod}
+                      onChange={e =>
+                        setEditData({
+                          ...editData,
+                          pricePeriod: e.target.value as 'DAY' | 'WEEK' | 'MONTH',
+                        })
+                      }
+                    >
+                      <option value="DAY">/jour</option>
+                      <option value="WEEK">/semaine</option>
+                      <option value="MONTH">/mois</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-primary-700 font-semibold mb-1">Statut</label>
+                    <select className="w-full border-2 border-primary-200 rounded-xl p-3" value={editData.isAvailable ? '1' : '0'} onChange={e => setEditData({ ...editData, isAvailable: e.target.value === '1' })}>
+                      <option value="1">Disponible</option>
+                      <option value="0">Non disponible</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-primary-700 font-semibold mb-1">Description</label>
+                  <textarea className="w-full border-2 border-primary-200 rounded-xl p-3" value={editData.description} onChange={e => setEditData({ ...editData, description: e.target.value })} rows={3} required />
+                </div>
+                <div>
+                  <label className="block text-primary-700 font-semibold mb-1">Équipements</label>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {Object.keys(AMENITIES_LABELS).map(a => (
+                      <label key={a} className={`px-3 py-1 rounded-xl border cursor-pointer select-none ${editAmenities.includes(a) ? 'bg-primary-100 border-primary-400 text-primary-700 font-bold' : 'bg-white border-primary-200 text-primary-400'}`}>
+                        <input
+                          type="checkbox"
+                          className="hidden"
+                          checked={editAmenities.includes(a)}
+                          onChange={() => setEditAmenities(editAmenities.includes(a) ? editAmenities.filter(x => x !== a) : [...editAmenities, a])}
+                        />
+                        {AMENITIES_LABELS[a]}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-primary-700 font-semibold mb-1">Photos</label>
+                  <input type="file" accept="image/*" multiple className="w-full border-2 border-primary-200 rounded-xl p-3" onChange={e => setEditPhotoFiles(e.target.files ? Array.from(e.target.files) : [])} />
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {editPhotoFiles.length > 0
+                      ? editPhotoFiles.map((file, i) => (
+                          <img key={i} src={URL.createObjectURL(file)} alt="Prévisualisation" className="w-20 h-20 object-cover rounded-xl border border-primary-200" />
+                      ))
+                      : property?.photos?.map((url, i) => (
+                          <img key={i} src={url} alt="Photo existante" className="w-20 h-20 object-cover rounded-xl border border-primary-200" />
+                      ))}
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 mt-4">
+                  <Button type="button" variant="secondary" onClick={() => setIsEditing(false)} className="px-6 py-2">Annuler</Button>
+                  <Button type="submit" variant="primary" className="px-6 py-2">Enregistrer</Button>
+                </div>
+              </form>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* SECTION RÉSERVATION & CALENDRIER */}
+      <div className="w-full max-w-5xl bg-white/90 rounded-3xl shadow-xl border-2 border-white/70 p-6 flex flex-col gap-4 items-center mx-auto">
+        <h3 className="text-2xl font-extrabold mb-2 text-primary-700 flex items-center gap-2 justify-center">📅 Réserver ce bien</h3>
+        <div className="w-full max-w-md">
+          {/* CALENDRIER DES RÉSERVATIONS */}
+          <Calendar key={propertyRentals.map(r => r.id).join('-')} bookings={propertyRentals.map(r => ({ start: r.startDate, end: r.endDate || '' }))} />
+        </div>
+        {/* FORMULAIRE DE RÉSERVATION EN DESSOUS DU CALENDRIER */}
+        <div className="w-full max-w-md mt-6">
+          <PropertyReservationForm
+            startDate={startDate}
+            endDate={endDate}
+            onStartDateChange={setStartDate}
+            onEndDateChange={setEndDate}
+            onSubmit={handleBooking}
+            isBooking={isBooking}
+            calendarMessage={calendarMessage}
+          />
+        </div>
+      </div>
+
+      {/* SECTION AVIS */}
+      <PropertyReviewsSection
+        reviews={reviews}
+        user={user}
+        onDeleteReview={handleDeleteReview}
+        AddReviewForm={user && (
+          <AddReviewForm propertyId={property.id} onReviewAdded={async () => {
+            const updated = await propertyApi.getReviews(property.id);
+            setReviews(updated);
+          }} />
         )}
-      </div>
-      {/* Carrousel immersif */}
-      {property.photos && property.photos.length > 0 && (
-        <div className="mb-10">
-          <div
-            className="relative w-full max-h-[420px] flex items-center justify-center select-none rounded-3xl overflow-hidden shadow-2xl border border-white/40 bg-gradient-to-br from-primary-50 via-white to-primary-100"
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-          >
-            <img
-              src={property.photos[currentPhoto]}
-              alt={property.title}
-              className={`w-full max-h-[420px] object-cover rounded-3xl transition-all duration-300 bg-gray-100
-                ${animDirection === 'left' ? 'animate-slide-left' : ''}
-                ${animDirection === 'right' ? 'animate-slide-right' : ''}
-                cursor-zoom-in`
-              }
-              style={{ aspectRatio: '16/9' }}
-              onClick={() => setZoomed(true)}
-            />
-            {property.photos.length > 1 && (
-              <>
-                <button
-                  type="button"
-                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 rounded-full p-3 shadow-xl hover:bg-primary-100 focus:outline-none"
-                  onClick={() => setCurrentPhoto((prev) => prev === 0 ? property.photos.length - 1 : prev - 1)}
-                  aria-label="Photo précédente"
-                >
-                  <span className="text-3xl">‹</span>
-                </button>
-                <button
-                  type="button"
-                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 rounded-full p-3 shadow-xl hover:bg-primary-100 focus:outline-none"
-                  onClick={() => setCurrentPhoto((prev) => prev === property.photos.length - 1 ? 0 : prev + 1)}
-                  aria-label="Photo suivante"
-                >
-                  <span className="text-3xl">›</span>
-                </button>
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-                  {property.photos.map((_, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      className={`w-3 h-3 rounded-full border border-primary-400 transition-all duration-150 ${i === currentPhoto ? 'bg-primary-500 scale-125 shadow' : 'bg-white/80'}`}
-                      onClick={() => setCurrentPhoto(i)}
-                      aria-label={`Aller à la photo ${i + 1}`}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-      {/* Overlay plein écran pour le zoom */}
-      {zoomed && property.photos && (
-        <div
-          ref={zoomOverlayRef}
-          className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center animate-fade-in-fast"
-          onClick={e => {
-            if (e.target === zoomOverlayRef.current) setZoomed(false);
-          }}
-          onTouchStart={handleZoomTouchStart}
-          onTouchMove={handleZoomTouchMove}
-          onTouchEnd={handleZoomTouchEnd}
-        >
-          <button
-            className="absolute top-6 right-8 bg-white/90 rounded-full p-3 shadow-xl hover:bg-primary-100 focus:outline-none"
-            onClick={() => setZoomed(false)}
-            aria-label="Fermer le zoom"
-          >
-            <span className="text-3xl">✕</span>
-          </button>
-          <div className="relative w-full max-w-4xl flex items-center justify-center">
-            <img
-              src={property.photos[currentPhoto]}
-              alt={property.title}
-              className="w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl bg-black"
-              style={{ aspectRatio: '16/9' }}
-              draggable={false}
-            />
-            {property.photos.length > 1 && (
-              <>
-                <button
-                  type="button"
-                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 rounded-full p-4 shadow-xl hover:bg-primary-100 focus:outline-none"
-                  onClick={e => { e.stopPropagation(); setCurrentPhoto((prev) => prev === 0 ? property.photos.length - 1 : prev - 1); }}
-                  aria-label="Photo précédente"
-                >
-                  <span className="text-4xl">‹</span>
-                </button>
-                <button
-                  type="button"
-                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 rounded-full p-4 shadow-xl hover:bg-primary-100 focus:outline-none"
-                  onClick={e => { e.stopPropagation(); setCurrentPhoto((prev) => prev === property.photos.length - 1 ? 0 : prev + 1); }}
-                  aria-label="Photo suivante"
-                >
-                  <span className="text-4xl">›</span>
-                </button>
-                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3">
-                  {property.photos.map((_, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      className={`w-3.5 h-3.5 rounded-full border border-primary-400 transition-all duration-150 ${i === currentPhoto ? 'bg-primary-500 scale-125 shadow' : 'bg-white/80'}`}
-                      onClick={e => { e.stopPropagation(); setCurrentPhoto(i); }}
-                      aria-label={`Aller à la photo ${i + 1}`}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-      {/* Description & actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-10">
-        <div className="md:col-span-2 bg-white/80 rounded-3xl shadow-xl border border-white/40 backdrop-blur-lg p-8 flex flex-col gap-6">
-          <div className="text-gray-700 text-lg whitespace-pre-line leading-relaxed">
-            {property.description}
-          </div>
-        </div>
-        <div className="flex flex-col gap-4 items-stretch justify-start">
-          {isOwner && !isEditing && (
-            <Button onClick={() => setIsEditing(true)} variant="primary" className="w-full text-lg py-3 shadow-lg">Modifier</Button>
-          )}
-          {isOwner && isEditing && (
-            <form onSubmit={handleEdit} className="space-y-4 mb-6">
-              <input className="w-full border rounded-xl p-3 text-lg" value={editData.title} onChange={e => setEditData(d => ({ ...d, title: e.target.value }))} required />
-              <input className="w-full border rounded-xl p-3 text-lg" value={editData.address} onChange={e => setEditData(d => ({ ...d, address: e.target.value }))} required />
-              <textarea className="w-full border rounded-xl p-3 text-lg" value={editData.description || ''} onChange={e => setEditData(d => ({ ...d, description: e.target.value }))} />
-              <div className="flex gap-2">
-                <Button type="submit" variant="primary" className="flex-1 py-3">Enregistrer</Button>
-                <Button type="button" variant="secondary" className="flex-1 py-3" onClick={() => setIsEditing(false)}>Annuler</Button>
-              </div>
-            </form>
-          )}
-          {isOwner && !isEditing && (
-            <Button onClick={handleDelete} variant="secondary" isLoading={isDeleting} className="w-full bg-red-500 hover:bg-red-600 text-white text-lg py-3 shadow-lg">Supprimer</Button>
-          )}
-          <Link to="/properties">
-            <Button variant="secondary" className="w-full text-lg py-3">Retour à la liste</Button>
-          </Link>
-        </div>
-      </div>
+      />
     </div>
   );
 };
 
-// Ajout des animations CSS (slide left/right)
-// À placer dans App.css ou dans un fichier global CSS
-//
-// .animate-slide-left {
-//   animation: slideLeft 0.35s cubic-bezier(0.4,0,0.2,1);
-// }
-// .animate-slide-right {
-//   animation: slideRight 0.35s cubic-bezier(0.4,0,0.2,1);
-// }
-// @keyframes slideLeft {
-//   from { transform: translateX(100%); opacity: 0.7; }
-//   to { transform: translateX(0); opacity: 1; }
-// }
-// @keyframes slideRight {
-//   from { transform: translateX(-100%); opacity: 0.7; }
-//   to { transform: translateX(0); opacity: 1; }
-// }
-//
-// Pour le zoom, la classe scale-110 et cursor-zoom-out sont déjà gérées par Tailwind.
+// Formulaire d'ajout d'avis (composant interne)
+const AddReviewForm: React.FC<{ propertyId: string; onReviewAdded: () => void }> = ({ propertyId, onReviewAdded }) => {
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rating || !comment.trim()) {
+      setError('Merci de donner une note et un commentaire.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await propertyApi.addReview(propertyId, { rating, comment });
+      setSuccess(true);
+      setComment('');
+      setRating(0);
+      onReviewAdded();
+      setTimeout(() => setSuccess(false), 2000);
+    } catch {
+      setError("Erreur lors de l'envoi de l'avis.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-3 bg-primary-50 rounded-2xl p-4 border border-primary-100 shadow animate-fade-in">
+      <div className="flex items-center gap-2">
+        <span className="font-semibold text-primary-700">Votre note :</span>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <button
+            type="button"
+            key={i}
+            className={`focus:outline-none ${i < rating ? 'text-yellow-400' : 'text-gray-300'}`}
+            onClick={() => setRating(i + 1)}
+            aria-label={`Donner ${i + 1} étoile${i > 0 ? 's' : ''}`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-7 h-7" fill={i < rating ? 'currentColor' : 'none'} viewBox="0 0 24 24">
+              <path d="M12 .587l3.668 7.431 8.209 1.188-5.934 5.759 1.398 8.165L12 18.896l-7.341 3.86 1.398-8.165-5.934-5.759 8.209-1.188z" />
+            </svg>
+          </button>
+        ))}
+      </div>
+      <textarea
+        className="w-full border-2 border-primary-200 rounded-xl p-3 text-lg"
+        placeholder="Votre commentaire..."
+        value={comment}
+        onChange={e => setComment(e.target.value)}
+        rows={3}
+        required
+      />
+      <div className="flex items-center gap-2">
+        <Button type="submit" isLoading={loading} className="bg-primary-500 text-white px-6 py-2 rounded-xl font-bold shadow hover:bg-primary-600 transition">Envoyer</Button>
+        {success && <span className="text-green-600 font-semibold animate-fade-in">Merci pour votre avis !</span>}
+        {error && <span className="text-red-500 font-semibold animate-fade-in">{error}</span>}
+      </div>
+    </form>
+  );
+};
+
+// Nouveau composant PropertyReservationForm
+const PropertyReservationForm: React.FC<{
+  startDate: string;
+  endDate: string;
+  onStartDateChange: (date: string) => void;
+  onEndDateChange: (date: string) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  isBooking: boolean;
+  calendarMessage: string | null;
+}> = ({ startDate, endDate, onStartDateChange, onEndDateChange, onSubmit, isBooking, calendarMessage }) => {
+  return (
+    <form onSubmit={onSubmit} className="bg-primary-50 p-6 rounded-2xl shadow-md flex flex-col gap-4">
+      <div className="flex gap-4">
+        <div className="flex-1">
+          <label className="block text-primary-700 font-semibold mb-1">Date de début</label>
+          <input
+            type="date"
+            className="w-full border-2 border-primary-200 rounded-xl p-3 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            value={startDate}
+            onChange={e => onStartDateChange(e.target.value)}
+            required
+          />
+        </div>
+        <div className="flex-1">
+          <label className="block text-primary-700 font-semibold mb-1">Date de fin</label>
+          <input
+            type="date"
+            className="w-full border-2 border-primary-200 rounded-xl p-3 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            value={endDate}
+            onChange={e => onEndDateChange(e.target.value)}
+            required
+          />
+        </div>
+      </div>
+      {calendarMessage && (
+        <div className={`text-center py-2 rounded-xl font-semibold ${calendarMessage.includes('succès') ? 'text-green-600' : 'text-red-600'}`}>
+          {calendarMessage}
+        </div>
+      )}
+      <Button type="submit" variant="primary" className="w-full py-3 text-lg font-bold flex items-center justify-center gap-2">
+        {isBooking ? (
+          <>
+            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4zm16 0a8 8 0 01-8 8v-8h8z"></path>
+            </svg>
+            Chargement...
+          </>
+        ) : (
+          'Réserver maintenant'
+        )}
+      </Button>
+    </form>
+  );
+};

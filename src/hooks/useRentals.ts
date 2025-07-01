@@ -14,5 +14,18 @@ export function useRentals() {
       .finally(() => setIsLoading(false));
   }, []);
 
-  return { rentals, isLoading, error };
+  const refetch = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await rentalApi.getAll();
+      setRentals(data);
+    } catch {
+      setError('Erreur lors du chargement des locations');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return { rentals, isLoading, error, refetch };
 }

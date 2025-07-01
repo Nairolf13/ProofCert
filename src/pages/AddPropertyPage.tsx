@@ -37,6 +37,7 @@ export const AddPropertyPage: React.FC = () => {
   const [city, setCity] = useState('');
   const [area, setArea] = useState<number | ''>('');
   const [price, setPrice] = useState<number | ''>('');
+  const [pricePeriod, setPricePeriod] = useState<'MONTH' | 'WEEK' | 'DAY'>('MONTH');
   const [isAvailable, setIsAvailable] = useState(true);
   const [countryOptions, setCountryOptions] = useState<{ name: string; code: string }[]>([]);
   const [regionOptions, setRegionOptions] = useState<string[]>([]);
@@ -120,6 +121,7 @@ export const AddPropertyPage: React.FC = () => {
         city,
         area: Number(area),
         price: Number(price),
+        pricePeriod,
         isAvailable,
         photos: photoUrls,
         ...(description ? { description } : {})
@@ -263,6 +265,20 @@ export const AddPropertyPage: React.FC = () => {
               min={0}
               required
             />
+            <div className="flex items-center gap-2">
+              <label htmlFor="pricePeriod" className="text-sm text-gray-700 font-semibold">Période</label>
+              <select
+                id="pricePeriod"
+                className="border-2 border-gray-200 rounded-xl px-3 py-2 text-base font-medium focus:outline-none focus:border-purple-400 transition bg-white"
+                value={pricePeriod}
+                onChange={e => setPricePeriod(e.target.value as 'MONTH' | 'WEEK' | 'DAY')}
+                required
+              >
+                <option value="MONTH">par mois</option>
+                <option value="WEEK">par semaine</option>
+                <option value="DAY">par jour</option>
+              </select>
+            </div>
             <div className="flex items-center gap-2 mt-2">
               <input
                 id="isAvailable"

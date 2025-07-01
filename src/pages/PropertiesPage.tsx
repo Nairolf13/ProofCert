@@ -64,7 +64,7 @@ export const PropertiesPage: React.FC = () => {
                 <div className="truncate"><span className="font-semibold">Région :</span> {property.region}</div>
                 <div className="truncate"><span className="font-semibold">Pays :</span> {property.country}</div>
                 <div><span className="font-semibold">Surface :</span> {property.area} m²</div>
-                <div><span className="font-semibold">Prix :</span> {property.price} €</div>
+                <div><span className="font-semibold">Prix :</span> {property.price} € {property.pricePeriod === 'DAY' ? '/jour' : property.pricePeriod === 'WEEK' ? '/semaine' : '/mois'}</div>
               </div>
               <div className="text-xs text-gray-400 truncate mt-2 min-h-[1.5em] max-h-[2.5em] overflow-hidden"><span className="font-semibold">Description :</span> {property.description}</div>
               {/* Miniatures supplémentaires */}

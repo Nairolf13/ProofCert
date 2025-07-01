@@ -6,6 +6,7 @@ export interface User {
   createdAt: string;
   updatedAt: string;
   profileImage?: string;
+  role?: 'OWNER' | 'TENANT';
 }
 
 export interface Proof {
@@ -72,6 +73,18 @@ export interface ShareableProof {
   ipfsHash?: string;
 }
 
+export interface Review {
+  id: string;
+  rating: number; // 1 à 5
+  comment: string;
+  propertyId: string;
+  userId: string;
+  user?: User;
+  createdAt: string;
+}
+
+export type PricePeriod = 'DAY' | 'WEEK' | 'MONTH';
+
 export interface Property {
   id: string;
   title: string;
@@ -82,12 +95,15 @@ export interface Property {
   city?: string;
   area?: number; // superficie en m²
   price?: number; // prix de la location
+  pricePeriod?: PricePeriod; // période du prix
   isAvailable?: boolean;
   photos: string[];
   ownerId: string;
   owner?: User;
   rentals?: Rental[];
   proofs?: Proof[];
+  amenities?: string[];
+  reviews?: Review[];
   createdAt: string;
   updatedAt: string;
 }

@@ -2,7 +2,7 @@ import type { Property } from '../types/index';
 import api from './user';
 
 export const propertyApi = {
-  create: async (data: { title: string; address: string; country: string; region: string; city: string; area: number; price: number; isAvailable: boolean; photos: string[]; description?: string }) => {
+  create: async (data: { title: string; address: string; country: string; region: string; city: string; area: number; price: number; pricePeriod: 'DAY' | 'WEEK' | 'MONTH'; isAvailable: boolean; photos: string[]; description?: string }) => {
     const response = await api.post('/properties', data);
     return response.data;
   },
@@ -32,6 +32,18 @@ export const propertyApi = {
     if (response.data.user) {
       localStorage.setItem('user', JSON.stringify(response.data.user));
     }
+    return response.data;
+  },
+  getReviews: async (propertyId: string) => {
+    const response = await api.get(`/properties/${propertyId}/reviews`);
+    return response.data;
+  },
+  addReview: async (propertyId: string, data: { rating: number; comment: string }) => {
+    const response = await api.post(`/properties/${propertyId}/reviews`, data);
+    return response.data;
+  },
+  deleteReview: async (reviewId: string) => {
+    const response = await api.delete(`/reviews/${reviewId}`);
     return response.data;
   },
 };

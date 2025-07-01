@@ -24,7 +24,7 @@ router.post('/properties', authenticateToken, requireRole('OWNER'), async (req, 
   const user = req.user;
   try {
     if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
-    const { title, description, address, photos, country, region, city, area, price, isAvailable } = req.body;
+    const { title, description, address, photos, country, region, city, area, price, pricePeriod, isAvailable, amenities } = req.body;
     const property = await prisma.property.create({
       data: {
         title,
@@ -36,7 +36,9 @@ router.post('/properties', authenticateToken, requireRole('OWNER'), async (req, 
         city,
         area,
         price,
+        pricePeriod: pricePeriod || 'MONTH',
         isAvailable,
+        amenities: amenities || [],
         ownerId: user.id,
       }
     });
@@ -68,7 +70,7 @@ router.get('/properties/:id', authenticateToken, async (req, res) => {
   const user = req.user;
   try {
     if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
-    const property = await prisma.property.findUnique({ where: { id: req.params.id }, include: { owner: true, proofs: true } });
+    const property = await prisma.property.findUnique({ where: { id: req.params.id }, include: { owner: true, proofs: true, rentals: true } });
     if (!property) { res.status(404).json({ error: 'Not found' }); return; }
     // Plus de restriction d'accès ici : tout utilisateur connecté peut voir le détail
     res.json(property);
@@ -87,10 +89,10 @@ router.put('/properties/:id', authenticateToken, requireRole('OWNER'), async (re
     const property = await prisma.property.findUnique({ where: { id } });
     if (!property) { res.status(404).json({ error: 'Not found' }); return; }
     if (property.ownerId !== user.id) { res.status(403).json({ error: 'Forbidden' }); return; }
-    const { title, description, address, photos } = req.body;
+    const { title, description, address, photos, amenities, pricePeriod } = req.body;
     const updated = await prisma.property.update({
       where: { id },
-      data: { title, description, address, photos },
+      data: { title, description, address, photos, amenities: amenities || [], ...(pricePeriod && { pricePeriod }) },
     });
     res.json(updated);
   } catch {
@@ -201,6 +203,58 @@ router.get('/proofs', authenticateToken, async (req, res) => {
     res.json(proofs);
   } catch {
     res.status(500).json({ error: 'Erreur serveur lors de la récupération des preuves' });
+  }
+});
+
+// --- AJOUT : Récupérer les avis d'un bien ---
+router.get('/properties/:id/reviews', authenticateToken, async (req, res) => {
+  try {
+    const reviews = await prisma.review.findMany({
+      where: { propertyId: req.params.id },
+      include: { user: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(reviews);
+  } catch {
+    res.status(500).json({ error: 'Erreur serveur lors de la récupération des avis' });
+  }
+});
+
+// --- AJOUT : Ajouter un avis à un bien ---
+router.post('/properties/:id/reviews', authenticateToken, async (req, res) => {
+  const user = req.user;
+  try {
+    if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const { rating, comment } = req.body;
+    if (!rating || !comment) { res.status(400).json({ error: 'Champs requis manquants' }); return; }
+    const review = await prisma.review.create({
+      data: {
+        rating: Math.max(1, Math.min(5, Number(rating))),
+        comment,
+        propertyId: req.params.id,
+        userId: user.id,
+      },
+      include: { user: true },
+    });
+    res.status(201).json(review);
+  } catch {
+    res.status(500).json({ error: 'Erreur serveur lors de l\'ajout de l\'avis' });
+  }
+});
+
+// --- AJOUT : Supprimer un avis ---
+router.delete('/reviews/:id', authenticateToken, async (req, res) => {
+  const user = req.user;
+  try {
+    if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const { id } = req.params;
+    const review = await prisma.review.findUnique({ where: { id } });
+    if (!review) { res.status(404).json({ error: 'Not found' }); return; }
+    if (review.userId !== user.id) { res.status(403).json({ error: 'Forbidden' }); return; }
+    await prisma.review.delete({ where: { id } });
+    res.status(204).send();
+  } catch {
+    res.status(500).json({ error: 'Erreur serveur lors de la suppression de l\'avis' });
   }
 });
 
