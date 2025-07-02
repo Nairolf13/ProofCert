@@ -1,0 +1,23 @@
+<!-- Version minimaliste pour les petits espaces -->
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="primaryGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1E40AF;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10B981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Maison simplifiée -->
+  <path d="M3 15 L12 6 L21 15 L21 21 L15 21 L15 15 L9 15 L9 21 L3 21 Z" fill="url(#primaryGradient)"/>
+  
+  <!-- Toit avec accent -->
+  <path d="M1 15 L12 4 L23 15 L20 15 L12 7 L4 15 Z" fill="url(#accentGradient)"/>
+  
+  <!-- Badge de certification compact -->
+  <circle cx="17" cy="10" r="3" fill="url(#accentGradient)" stroke="#ffffff" stroke-width="0.5"/>
+  <path d="M15.5 10 L16.5 11 L18.5 9" stroke="#ffffff" stroke-width="1" stroke-linecap="round" fill="none"/>
+</svg>

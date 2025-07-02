@@ -37,10 +37,7 @@ export const Navbar: React.FC = () => {
     >
       <div className="flex items-center gap-2 mb-8">
         <Link to="/" className="flex items-center gap-2">
-          <div className="w-10 h-10 gradient-primary rounded-2xl flex items-center justify-center shadow-lg">
-            <span className="text-white font-bold text-lg">PC</span>
-          </div>
-          <span className="text-2xl font-extrabold text-primary tracking-tight drop-shadow-sm">ProofCert</span>
+          <span className="text-2xl font-extrabold text-primary tracking-tight drop-shadow-sm">ProofEstate</span>
         </Link>
       </div>
       <nav className="flex-1 flex flex-col gap-2 w-full">

@@ -1,0 +1,52 @@
+<svg width="180" height="50" viewBox="0 0 180 50" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="futuristicGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#667eea"/>
+      <stop offset="50%" style="stop-color:#764ba2"/>
+      <stop offset="100%" style="stop-color:#f093fb"/>
+    </linearGradient>
+    
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Concept: Formes liquides/organiques qui représentent la fluidité des données -->
+  
+  <!-- Forme principale - blob morphique -->
+  <path d="M10 25 Q20 15 35 20 Q45 25 40 35 Q30 40 20 35 Q10 30 10 25 Z" 
+        fill="url(#futuristicGradient)" 
+        opacity="0.8"
+        filter="url(#glow)"/>
+  
+  <!-- Particules de données -->
+  <circle cx="25" cy="25" r="2" fill="white" opacity="0.9"/>
+  <circle cx="30" cy="22" r="1.5" fill="white" opacity="0.7"/>
+  <circle cx="22" cy="28" r="1" fill="white" opacity="0.5"/>
+  
+  <!-- Texte ultra-moderne -->
+  <text x="55" y="20" 
+        font-family="system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display'" 
+        font-size="16" 
+        font-weight="800" 
+        fill="#1a1a1a"
+        letter-spacing="-0.5px">
+    PROOF
+  </text>
+  
+  <text x="55" y="35" 
+        font-family="system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display'" 
+        font-size="14" 
+        font-weight="300" 
+        fill="#6b7280"
+        letter-spacing="1px">
+    ESTATE
+  </text>
+  
+  <!-- Accent moderne -->
+  <rect x="52" y="37" width="50" height="1" fill="url(#futuristicGradient)" opacity="0.3"/>
+</svg>

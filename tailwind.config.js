@@ -27,7 +27,42 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: [
+          'Inter',
+          '-apple-system',
+          'BlinkMacSystemFont', 
+          'system-ui',
+          'Segoe UI',
+          'Roboto',
+          'Helvetica Neue',
+          'Arial',
+          'sans-serif'
+        ],
+        serif: [
+          'Playfair Display',
+          'Georgia',
+          'Cambria',
+          'Times New Roman',
+          'Times',
+          'serif'
+        ],
+        mono: [
+          'JetBrains Mono',
+          'SF Mono',
+          'Monaco',
+          'Inconsolata',
+          'Roboto Mono',
+          'source-code-pro',
+          'Menlo',
+          'monospace'
+        ],
+        display: [
+          'Inter',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'system-ui',
+          'sans-serif'
+        ]
       },
     },
   },
