@@ -1,5 +1,6 @@
 import React from 'react';
 import { StarIcon } from '@heroicons/react/24/solid';
+import { UserIcon } from '@heroicons/react/24/outline';
 import type { Review } from '../types';
 
 interface PropertyReviewsProps {
@@ -26,7 +27,20 @@ export const PropertyReviews: React.FC<PropertyReviewsProps> = ({
       <div className="flex flex-col gap-4">
         {(showAllReviews ? reviews : reviews.slice(0, 3)).map((review: Review) => (
           <div key={review.id} className="bg-white/90 border border-primary-100 rounded-2xl p-4 shadow flex flex-col gap-1 relative animate-fade-in">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-3 mb-1">
+              {/* Avatar de l'utilisateur */}
+              <div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-primary-200 bg-white flex items-center justify-center flex-shrink-0">
+                {review.user?.profileImage ? (
+                  <img 
+                    src={review.user.profileImage} 
+                    alt={`Photo de profil de ${review.user.username || 'Utilisateur'}`} 
+                    className="w-full h-full object-cover" 
+                    loading="lazy" 
+                  />
+                ) : (
+                  <UserIcon className="w-5 h-5 text-primary-500" />
+                )}
+              </div>
               <span className="font-bold text-primary-700">{review.user && typeof review.user.username === 'string' && review.user.username.trim() ? review.user.username : 'Utilisateur'}</span>
               <span className="flex items-center gap-1 ml-2">
                 {Array.from({ length: 5 }).map((_, i) => (

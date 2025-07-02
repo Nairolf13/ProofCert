@@ -23,6 +23,7 @@ model User {
   properties     Property[] @relation("OwnerProperties")
   rentals        Rental[]   @relation("TenantRentals")
   reviews        Review[]
+  favorites      Favorite[] @relation("UserFavorites")
   
   @@map("users")
 }
@@ -84,6 +85,7 @@ model Property {
   rentals     Rental[]
   proofs      Proof[]   @relation("PropertyProofs")
   reviews     Review[]  // avis utilisateurs
+  favorites   Favorite[] @relation("PropertyFavorites")
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
@@ -110,6 +112,18 @@ model Review {
   userId      String
   user        User     @relation(fields: [userId], references: [id])
   createdAt   DateTime @default(now())
+}
+
+model Favorite {
+  id          String   @id @default(cuid())
+  userId      String
+  propertyId  String
+  user        User     @relation("UserFavorites", fields: [userId], references: [id], onDelete: Cascade)
+  property    Property @relation("PropertyFavorites", fields: [propertyId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  
+  @@unique([userId, propertyId]) // Un utilisateur ne peut avoir qu'un seul favori par propriété
+  @@map("favorites")
 }
 
 enum ProofType {

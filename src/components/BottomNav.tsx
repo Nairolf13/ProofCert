@@ -14,7 +14,6 @@ const navItems = [
   { name: 'Properties', href: '/properties', icon: ClipboardDocumentListIcon },
   { name: 'Add Property', href: '/add-property', icon: PlusIcon },
   { name: 'Rentals', href: '/rentals', icon: ClipboardDocumentListIcon },
-  { name: 'Add Rental', href: '/add-rental', icon: PlusIcon },
   { name: 'Profile', href: '/profile', icon: UserIcon },
 ];
 

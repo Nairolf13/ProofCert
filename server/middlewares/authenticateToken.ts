@@ -6,7 +6,8 @@ import type { User } from '@prisma/client';
 const prisma = new PrismaClient();
 const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || 'access-secret';
 
-export interface AuthenticatedRequest extends express.Request {
+// Interface pour les requêtes authentifiées (usage interne uniquement)
+interface AuthenticatedRequest extends express.Request {
   user?: User;
 }
 

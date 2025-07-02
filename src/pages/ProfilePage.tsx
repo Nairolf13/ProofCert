@@ -1,129 +1,158 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { Card, CardContent } from '../components/Card';
+import { ImmersiveLayout } from '../components/ImmersiveLayout';
 import { Button } from '../components/Button';
-import { UserIcon, WalletIcon, CalendarIcon, EnvelopeIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
+import { UserIcon, WalletIcon, CalendarIcon, EnvelopeIcon, ArrowRightOnRectangleIcon, CameraIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
 import { userApi } from '../api/user';
 
 const ProfilePage: React.FC = () => {
-  const { user, isAuthenticated, refreshUser, disconnect } = useAuth();
+  const { user, isAuthenticated, disconnect, updateUser } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleProfileImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleProfileImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    // Validation du fichier
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      alert('Format de fichier non supporté. Utilisez JPG, PNG ou WebP.');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) { // 5MB
+      alert('Le fichier est trop volumineux. Taille maximale : 5MB.');
+      return;
+    }
+
     setIsUploading(true);
-    setUploadError(null);
     try {
-      // TODO: upload to backend or IPFS, here just a placeholder
-      const url = 'https://placehold.co/96x96?text=TODO';
-      await userApi.updateProfileImage(url);
-      await refreshUser?.();
-    } catch (err: unknown) {
-      setUploadError(err instanceof Error ? err.message : 'Upload failed');
+      // Convertir en base64 pour l'envoi
+      const base64 = await fileToBase64(file);
+      
+      // Mettre à jour le profil via l'API
+      const updatedUser = await userApi.updateProfileImage(base64);
+
+      // Mettre à jour le contexte utilisateur
+      updateUser(updatedUser);
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de la photo de profil:', error);
+      alert('Erreur lors de la mise à jour de la photo de profil');
     } finally {
       setIsUploading(false);
     }
   };
 
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
   if (!isAuthenticated || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 via-white to-primary-100">
-        <Card className="backdrop-blur-xl bg-white/70 border border-white/40 shadow-xl rounded-2xl">
-          <CardContent className="text-center">
-            <UserIcon className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Not Authenticated</h2>
-            <p className="text-gray-600 mb-4">Please log in to view your profile.</p>
-            <Link to="/auth">
-              <Button>Login</Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
+      <ImmersiveLayout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <UserIcon className="w-16 h-16 text-secondary mb-4" />
+          <h2 className="text-3xl font-extrabold mb-2 text-primary">Non authentifié</h2>
+          <p className="text-lg text-secondary mb-6">Connectez-vous pour accéder à votre profil magazine.</p>
+          <Link to="/auth">
+            <Button className="btn-primary px-8 py-3 text-lg font-bold rounded-2xl shadow-xl hover:scale-105 transition">Connexion</Button>
+          </Link>
+        </div>
+      </ImmersiveLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-100 flex items-center justify-center px-2 py-8 animate-fade-in">
-      <div className="w-full max-w-lg mx-auto">
-        <div className="relative rounded-3xl bg-white/60 backdrop-blur-xl border border-white/40 shadow-2xl p-8 flex flex-col items-center gap-6 glass-card">
-          {/* Avatar avec effet glow */}
-          <div className="relative group mb-2">
-            <div className="absolute -inset-1 rounded-full blur-xl bg-gradient-to-tr from-primary-300/60 to-primary-500/40 opacity-60 group-hover:opacity-90 transition" />
-            <div className="relative w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow-lg flex items-center justify-center bg-gradient-to-br from-primary-100 to-primary-200">
-              {user.profileImage ? (
-                <img
-                  src={user.profileImage}
-                  alt="Profile"
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-              ) : (
-                <UserIcon className="w-14 h-14 text-primary-400" />
-              )}
-              <button
-                type="button"
-                className="absolute bottom-2 right-2 bg-white/80 rounded-full p-1.5 shadow hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-primary-400"
-                onClick={() => fileInputRef.current?.click()}
-                aria-label="Changer la photo de profil"
-                disabled={isUploading}
-              >
-                <svg className="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6-6m2 2a2.828 2.828 0 11-4-4 2.828 2.828 0 014 4z" /></svg>
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleProfileImageChange}
-                disabled={isUploading}
-              />
+    <ImmersiveLayout>
+      <section className="w-full max-w-3xl mx-auto flex flex-col items-center gap-12 py-12 animate-fade-in">
+        {/* Avatar magazine */}
+        <div className="relative group mb-2">
+          <div className="absolute -inset-2 rounded-full blur-2xl bg-primary-light opacity-30 group-hover:opacity-50 transition" />
+          <div className="relative w-36 h-36 rounded-full overflow-hidden border-8 border-white shadow-2xl flex items-center justify-center bg-surface">
+            {user.profileImage ? (
+              <img src={user.profileImage} alt="Profile" className="w-full h-full object-cover" loading="lazy" />
+            ) : (
+              <UserIcon className="w-20 h-20 text-secondary" />
+            )}
+            
+            {/* Overlay pour changer la photo */}
+            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+              <label htmlFor="profile-image-input" className="cursor-pointer">
+                <CameraIcon className="w-8 h-8 text-white" />
+                {isUploading && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                )}
+              </label>
             </div>
           </div>
-          {isUploading && <div className="text-xs text-primary-600 mt-1">Uploading...</div>}
-          {uploadError && <div className="text-xs text-red-500 mt-1">{uploadError}</div>}
-
-          {/* Infos utilisateur */}
-          <div className="flex flex-col items-center gap-1 w-full">
-            <span className="text-2xl font-bold text-gray-900 mb-0.5 truncate max-w-xs drop-shadow-sm">{user.username || user.email}</span>
-            <span className="text-gray-500 text-sm truncate max-w-xs mb-2">{user.email}</span>
-            <div className="flex flex-wrap gap-2 justify-center mt-2">
-              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary-50 text-primary-700 text-xs font-medium shadow-sm border border-primary-100">
-                <WalletIcon className="w-4 h-4" />
-                {user.walletAddress ? user.walletAddress : 'Wallet non connecté'}
-              </span>
-              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary-50 text-primary-700 text-xs font-medium shadow-sm border border-primary-100">
-                <CalendarIcon className="w-4 h-4" />
-                Membre depuis {new Date(user.createdAt).toLocaleDateString()}
-              </span>
-            </div>
-            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gray-100 text-gray-500 text-xs font-mono mt-2 border border-gray-200">
-              <EnvelopeIcon className="w-4 h-4" />
-              ID: {user.id}
+          
+          {/* Input caché pour sélectionner l'image */}
+          <input
+            id="profile-image-input"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={handleProfileImageChange}
+            className="hidden"
+            disabled={isUploading}
+          />
+        </div>
+        {/* Infos utilisateur */}
+        <div className="flex flex-col items-center gap-2 w-full">
+          <span className="text-3xl font-extrabold text-primary mb-0.5 truncate max-w-xs drop-shadow">{user.username || user.email}</span>
+          <span className="text-secondary text-lg truncate max-w-xs mb-2">{user.email}</span>
+          <div className="flex flex-wrap gap-3 justify-center mt-2">
+            <span className="inline-flex items-center gap-1 px-4 py-1 rounded-full bg-accent-light text-accent text-base font-medium shadow border border-accent">
+              <WalletIcon className="w-5 h-5" />
+              {user.walletAddress ? user.walletAddress : 'Wallet non connecté'}
+            </span>
+            <span className="inline-flex items-center gap-1 px-4 py-1 rounded-full bg-primary-light text-primary text-base font-medium shadow border border-primary">
+              <CalendarIcon className="w-5 h-5" />
+              Membre depuis {new Date(user.createdAt).toLocaleDateString()}
             </span>
           </div>
-
-          {/* Actions */}
-          <div className="flex flex-col sm:flex-row gap-3 w-full mt-6">
-            <Button
-              className="w-full sm:w-auto flex-1 bg-gradient-to-r from-primary-500 to-primary-400 text-white shadow-lg hover:from-primary-600 hover:to-primary-500 focus:ring-2 focus:ring-primary-400"
-              onClick={disconnect}
-              leftIcon={<ArrowRightOnRectangleIcon className="w-5 h-5" />}
-            >
-              Se déconnecter
-            </Button>
-            <Link to="/dashboard" className="w-full sm:w-auto flex-1">
-              <Button variant="secondary" className="w-full">
-                Retour au dashboard
-              </Button>
-            </Link>
-          </div>
+          <span className="inline-flex items-center gap-1 px-4 py-1 rounded-full bg-surface-secondary text-secondary text-xs font-mono mt-2 border border-light">
+            <EnvelopeIcon className="w-4 h-4" />
+            ID: {user.id}
+          </span>
         </div>
-      </div>
-    </div>
+        {/* Actions */}
+        <div className="flex flex-col sm:flex-row gap-4 w-full mt-8">
+          <Link to="/favorites" className="w-full sm:w-auto flex-1">
+            <Button 
+              variant="secondary" 
+              className="w-full text-lg font-bold border-2 border-red-200 text-red-600 hover:bg-red-50"
+              leftIcon={
+                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                </svg>
+              }
+            >
+              Mes favoris
+            </Button>
+          </Link>
+          <Button
+            className="btn-primary w-full sm:w-auto flex-1 text-lg font-bold shadow-xl focus:ring-2 focus:ring-primary"
+            onClick={disconnect}
+            leftIcon={<ArrowRightOnRectangleIcon className="w-6 h-6" />}
+          >
+            Se déconnecter
+          </Button>
+          <Link to="/dashboard" className="w-full sm:w-auto flex-1">
+            <Button variant="secondary" className="w-full text-lg font-bold">
+              Retour au dashboard
+            </Button>
+          </Link>
+        </div>
+      </section>
+    </ImmersiveLayout>
   );
 };
 

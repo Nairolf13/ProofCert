@@ -13,23 +13,23 @@ export const validatePassword = (password: string): { isValid: boolean; errors: 
   const errors: string[] = [];
   
   if (password.length < 8) {
-    errors.push('Password must be at least 8 characters long');
+    errors.push('Le mot de passe doit contenir au moins 8 caractères');
   }
   
   if (!/(?=.*[a-z])/.test(password)) {
-    errors.push('Password must contain at least one lowercase letter');
+    errors.push('Le mot de passe doit contenir au moins une lettre minuscule');
   }
   
   if (!/(?=.*[A-Z])/.test(password)) {
-    errors.push('Password must contain at least one uppercase letter');
+    errors.push('Le mot de passe doit contenir au moins une lettre majuscule');
   }
   
   if (!/(?=.*\d)/.test(password)) {
-    errors.push('Password must contain at least one number');
+    errors.push('Le mot de passe doit contenir au moins un chiffre');
   }
   
   if (!/(?=.*[@$!%*?&])/.test(password)) {
-    errors.push('Password must contain at least one special character (@$!%*?&)');
+    errors.push('Le mot de passe doit contenir au moins un caractère spécial (@$!%*?&)');
   }
   
   return {

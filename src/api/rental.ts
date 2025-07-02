@@ -10,4 +10,8 @@ export const rentalApi = {
     const response = await api.get('/rentals');
     return response.data;
   },
+  getUserReservations: async (): Promise<Rental[]> => {
+    const response = await api.get('/rentals');
+    return response.data;
+  },
 };

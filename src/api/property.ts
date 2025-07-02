@@ -10,6 +10,16 @@ export const propertyApi = {
     const response = await api.get('/properties');
     return response.data;
   },
+  getAllPublic: async (): Promise<Property[]> => {
+    // Cette méthode récupère toutes les propriétés publiques disponibles (pour la recherche)
+    const response = await api.get('/properties/public/all');
+    return response.data;
+  },
+  getDiscover: async (): Promise<Property[]> => {
+    // Cette méthode récupère toutes les propriétés sans authentification (pour la découverte)
+    const response = await api.get('/properties/discover');
+    return response.data;
+  },
   getById: async (id: string): Promise<Property> => {
     const response = await api.get(`/properties/${id}`);
     return response.data;

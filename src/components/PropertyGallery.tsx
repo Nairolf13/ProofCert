@@ -32,7 +32,7 @@ export const PropertyGallery: React.FC<PropertyGalleryProps> = ({
           className="absolute top-6 right-8 bg-white/90 rounded-full p-3 shadow-xl hover:bg-primary-100 focus:outline-none"
           onClick={() => setZoomed(false)}
           aria-label="Fermer le zoom"
-        >✕</button>
+        >×</button>
         <img
           src={photos[currentPhoto]}
           alt={title}

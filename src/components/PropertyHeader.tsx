@@ -1,4 +1,6 @@
 import React from 'react';
+import { PropertyOwnerActions } from './PropertyOwnerActions';
+import { FavoriteButton } from './FavoriteButton';
 
 interface PropertyHeaderProps {
   title: string;
@@ -11,17 +13,51 @@ interface PropertyHeaderProps {
   region: string;
   country: string;
   createdAt: string;
-  owner?: { username?: string; email?: string };
+  owner?: { username?: string; email?: string; profileImage?: string };
+  isOwner?: boolean;
+  isEditing?: boolean;
+  isDeleting?: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  // Props pour les favoris
+  propertyId?: string;
+  isFavorite?: boolean;
+  onToggleFavorite?: (propertyId: string) => void;
 }
-import { HomeIcon, CheckCircleIcon, XCircleIcon, CurrencyEuroIcon, Squares2X2Icon, MapPinIcon, CalendarIcon, UserIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, XCircleIcon, CurrencyEuroIcon, Squares2X2Icon, MapPinIcon, CalendarIcon, UserIcon } from '@heroicons/react/24/outline';
 
 export const PropertyHeader: React.FC<PropertyHeaderProps> = ({
-  title, isAvailable, price, pricePeriod, area, address, city, region, country, createdAt, owner
+  title, isAvailable, price, pricePeriod, area, address, city, region, country, createdAt, owner,
+  isOwner, isEditing, isDeleting, onEdit, onDelete, propertyId, isFavorite, onToggleFavorite
 }) => (
-  <div className="w-full max-w-5xl flex flex-col gap-2 mb-2 items-center text-center mx-auto">
+  <div className="relative w-full max-w-5xl flex flex-col gap-2 mb-2 items-center text-center mx-auto">
+    {isOwner && onEdit && onDelete && (
+      <div className="absolute top-0 right-0 z-10">
+        <PropertyOwnerActions 
+          isOwner={isOwner}
+          isEditing={isEditing || false}
+          isDeleting={isDeleting || false}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
+      </div>
+    )}
+    
+    {/* Bouton favoris (pour les non-propriétaires) */}
+    {!isOwner && propertyId && onToggleFavorite && (
+      <div className="absolute top-0 left-0 z-10">
+        <FavoriteButton
+          propertyId={propertyId}
+          isFavorite={isFavorite || false}
+          onToggle={onToggleFavorite}
+          variant="default"
+          size="lg"
+        />
+      </div>
+    )}
+    
     <div className="flex flex-col items-center gap-3 mb-2">
-      <HomeIcon className="w-12 h-12 text-primary-500 drop-shadow-lg" />
-      <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 drop-shadow-sm bg-gradient-to-tr from-primary-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
+      <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 drop-shadow-lg">
         {title}
       </h1>
     </div>
@@ -48,7 +84,17 @@ export const PropertyHeader: React.FC<PropertyHeaderProps> = ({
     </div>
     {owner && (
       <div className="flex items-center gap-2 bg-white/80 backdrop-blur rounded-xl px-4 py-2 shadow border border-white/70 mt-2 justify-center">
-        <UserIcon className="w-7 h-7 text-primary-400" />
+        <div className="relative w-7 h-7 rounded-full overflow-hidden flex items-center justify-center bg-gray-100">
+          {owner.profileImage ? (
+            <img 
+              src={owner.profileImage} 
+              alt="Photo de profil" 
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <UserIcon className="w-7 h-7 text-primary-400" />
+          )}
+        </div>
         <span className="font-bold text-gray-900">{owner.username || owner.email}</span>
         <span className="text-xs text-gray-500 ml-2">Propriétaire</span>
       </div>

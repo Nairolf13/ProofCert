@@ -25,6 +25,9 @@ export const ProofDetailPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [showQRCode, setShowQRCode] = useState(false);
+  const [localFileData, setLocalFileData] = useState<string | null>(null);
+  const [localFileType, setLocalFileType] = useState<string>('');
+  const [localFileName, setLocalFileName] = useState<string>('');
 
   useEffect(() => {
     const fetchProof = async () => {
@@ -33,6 +36,17 @@ export const ProofDetailPage: React.FC = () => {
       try {
         const fetchedProof = await proofsApi.getById(id);
         setProof(fetchedProof);
+        
+        // Récupérer le fichier depuis le localStorage s'il existe
+        const fileData = localStorage.getItem(`proof_file_${id}`);
+        const fileType = localStorage.getItem(`proof_file_type_${id}`);
+        const fileName = localStorage.getItem(`proof_file_name_${id}`);
+        
+        if (fileData) {
+          setLocalFileData(fileData);
+          setLocalFileType(fileType || '');
+          setLocalFileName(fileName || '');
+        }
       } catch (error) {
         console.error('Failed to fetch proof:', error);
       } finally {
@@ -141,14 +155,57 @@ export const ProofDetailPage: React.FC = () => {
                       {proof.content}
                     </pre>
                   </div>
-                ) : proof.contentType === 'IMAGE' && proof.ipfsHash ? (
+                ) : proof.contentType === 'IMAGE' && (localFileData || proof.ipfsHash) ? (
                   <div className="bg-gray-50 rounded-lg flex items-center justify-center p-4">
                     <img
-                      src={proof.ipfsHash.startsWith('http') ? proof.ipfsHash : `https://ipfs.io/ipfs/${proof.ipfsHash}`}
+                      src={localFileData || (proof.ipfsHash?.startsWith('http') ? proof.ipfsHash : `https://ipfs.io/ipfs/${proof.ipfsHash}`)}
                       alt={proof.title || 'Proof image'}
                       className="max-h-96 max-w-full rounded-lg shadow"
                       style={{ objectFit: 'contain' }}
                     />
+                  </div>
+                ) : proof.contentType === 'VIDEO' && localFileData ? (
+                  <div className="bg-gray-50 rounded-lg flex items-center justify-center p-4">
+                    <video controls className="max-h-96 max-w-full rounded-lg shadow">
+                      <source src={localFileData} type={localFileType} />
+                      Votre navigateur ne supporte pas la lecture vidéo.
+                    </video>
+                  </div>
+                ) : proof.contentType === 'AUDIO' && localFileData ? (
+                  <div className="bg-gray-50 rounded-lg flex items-center justify-center p-4">
+                    <audio controls className="w-full">
+                      <source src={localFileData} type={localFileType} />
+                      Votre navigateur ne supporte pas la lecture audio.
+                    </audio>
+                  </div>
+                ) : proof.contentType === 'DOCUMENT' && localFileData ? (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center justify-center mb-4">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <p className="font-semibold text-gray-800">{localFileName}</p>
+                      <p className="text-sm text-gray-600">Document certifié</p>
+                    </div>
+                    {localFileType === 'application/pdf' && (
+                      <iframe
+                        src={localFileData}
+                        title={localFileName}
+                        className="w-full h-96 rounded-lg border mt-4"
+                      />
+                    )}
+                    {localFileType.startsWith('image/') && (
+                      <img
+                        src={localFileData}
+                        alt={localFileName}
+                        className="max-h-96 max-w-full rounded-lg shadow mt-4 mx-auto"
+                        style={{ objectFit: 'contain' }}
+                      />
+                    )}
                   </div>
                 ) : (
                   <div className="bg-gray-50 rounded-lg p-8 text-center">

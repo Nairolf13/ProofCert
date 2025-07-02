@@ -1,109 +1,382 @@
-import React, { useEffect } from 'react';
-import { useProperties } from '../hooks/useProperties';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { propertyApi } from '../api/property';
+import type { Property } from '../types';
+import { Button } from '../components/Button';
+import { ImmersiveLayout } from '../components/ImmersiveLayout';
+import { FavoriteButton } from '../components/FavoriteButton';
+import { useFavorites } from '../hooks/useFavorites';
+import {
+  MagnifyingGlassIcon,
+  MapPinIcon,
+  CurrencyEuroIcon,
+  HomeIcon,
+  Squares2X2Icon,
+  FunnelIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline';
 
 export const PropertiesPage: React.FC = () => {
-  const { properties, isLoading, error, refresh } = useProperties();
   const navigate = useNavigate();
+  const { toggleFavorite, isFavorite } = useFavorites();
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Filtres
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState('');
+  const [selectedCity, setSelectedCity] = useState('');
+  const [priceRange, setPriceRange] = useState({ min: '', max: '' });
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // Listes uniques pour les filtres
+  const [countries, setCountries] = useState<string[]>([]);
+  const [cities, setCities] = useState<string[]>([]);
 
   useEffect(() => {
-    refresh();
-    // eslint-disable-next-line
+    fetchProperties();
   }, []);
 
-  if (isLoading) return <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div></div>;
-  if (error) return <div className="text-red-500 text-center font-semibold py-8">{error}</div>;
+  const fetchProperties = async () => {
+    try {
+      setIsLoading(true);
+      // Utilise la nouvelle méthode qui récupère toutes les propriétés publiques
+      const data = await propertyApi.getAllPublic();
+      setProperties(data);
+      setFilteredProperties(data);
+      
+      // Extraire les pays et villes uniques (filtrer les undefined)
+      const uniqueCountries = [...new Set(data.map(p => p.country).filter((country): country is string => Boolean(country)))];
+      const uniqueCities = [...new Set(data.map(p => p.city).filter((city): city is string => Boolean(city)))];
+      setCountries(uniqueCountries);
+      setCities(uniqueCities);
+    } catch (err) {
+      setError('Erreur lors du chargement des propriétés');
+      console.error('Error fetching properties:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fonction de filtrage
+  useEffect(() => {
+    let filtered = properties;
+
+    // Recherche textuelle
+    if (searchQuery) {
+      filtered = filtered.filter(property =>
+        property.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        property.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        property.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Filtre par pays
+    if (selectedCountry) {
+      filtered = filtered.filter(property => property.country === selectedCountry);
+    }
+
+    // Filtre par ville
+    if (selectedCity) {
+      filtered = filtered.filter(property => property.city === selectedCity);
+    }
+
+    // Filtre par prix
+    if (priceRange.min || priceRange.max) {
+      filtered = filtered.filter(property => {
+        if (!property.price) return false;
+        const price = property.price;
+        const min = priceRange.min ? parseFloat(priceRange.min) : 0;
+        const max = priceRange.max ? parseFloat(priceRange.max) : Infinity;
+        return price >= min && price <= max;
+      });
+    }
+
+    setFilteredProperties(filtered);
+  }, [properties, searchQuery, selectedCountry, selectedCity, priceRange]);
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setSelectedCountry('');
+    setSelectedCity('');
+    setPriceRange({ min: '', max: '' });
+  };
+
+  const formatPrice = (price: number, period: string) => {
+    const periodLabels = {
+      DAY: '/jour',
+      WEEK: '/semaine',
+      MONTH: '/mois'
+    };
+    return `${price}€ ${periodLabels[period as keyof typeof periodLabels] || ''}`;
+  };
+
+  if (isLoading) {
+    return (
+      <ImmersiveLayout>
+        <div className="flex justify-center items-center h-96">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary"></div>
+        </div>
+      </ImmersiveLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <ImmersiveLayout>
+        <div className="text-error text-center font-bold py-16 text-2xl">{error}</div>
+      </ImmersiveLayout>
+    );
+  }
 
   return (
-    <div className="w-full max-w-6xl mx-auto py-10 px-4 md:px-8 animate-fade-in">
-      <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-8 drop-shadow-sm text-center">Tous les biens immobiliers</h1>
-      <div className="flex justify-end mb-6">
-        <Link to="/add-property" className="inline-block">
-          <button className="px-5 py-2 rounded-xl bg-gradient-to-tr from-purple-500 via-pink-500 to-blue-500 text-white font-semibold shadow hover:scale-105 transition">+ Ajouter un bien</button>
-        </Link>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        {properties.map((property, idx) => (
-          <Link
-            key={property.id}
-            to={`/properties/${property.id}`}
-            className="group relative bg-white/60 backdrop-blur-md border border-gray-100 rounded-3xl shadow-2xl p-0 overflow-hidden transition-all duration-300 hover:shadow-3xl hover:scale-[1.03] focus:outline-none focus:ring-2 focus:ring-primary-400 animate-fade-in-up h-full min-h-[420px] flex flex-col"
-            tabIndex={0}
-            aria-label={`Voir le bien ${property.title}`}
-            style={{ animationDelay: `${idx * 60}ms` }}
-          >
-            {/* Photo principale ou carousel */}
-            <div className="relative w-full h-48 shrink-0">
-              {property.photos && property.photos.length > 0 ? (
-                <img
-                  src={property.photos[0]}
-                  alt={property.title}
-                  className="w-full h-48 object-cover rounded-t-3xl border-b border-gray-100 group-hover:brightness-95 transition"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="w-full h-48 bg-gradient-to-br from-purple-100 via-blue-100 to-pink-100 flex items-center justify-center rounded-t-3xl text-5xl text-gray-300">
-                  <span className="material-symbols-outlined">home</span>
-                </div>
-              )}
-              {/* Badge nombre de photos */}
-              {property.photos && property.photos.length > 1 && (
-                <span className="absolute top-3 right-3 bg-white/80 text-gray-700 text-xs font-semibold px-2 py-0.5 rounded-full shadow border border-gray-200 backdrop-blur-sm">
-                  {property.photos.length} photos
-                </span>
-              )}
-            </div>
-            {/* Contenu */}
-            <div className="p-6 flex flex-col gap-2 flex-1 min-h-[220px]">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-xl font-bold text-primary-700 truncate max-w-[60%]">{property.title}</span>
-                <span className={`ml-auto px-2 py-0.5 rounded-full text-xs font-semibold shadow-sm border ${property.isAvailable ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-600 border-red-200'}`}>{property.isAvailable ? 'Disponible' : 'Non disponible'}</span>
-              </div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-gray-600 text-sm mt-1">
-                <div className="col-span-2 truncate"><span className="font-semibold">Ville :</span> {property.city}</div>
-                <div className="truncate"><span className="font-semibold">Région :</span> {property.region}</div>
-                <div className="truncate"><span className="font-semibold">Pays :</span> {property.country}</div>
-                <div><span className="font-semibold">Surface :</span> {property.area} m²</div>
-                <div><span className="font-semibold">Prix :</span> {property.price} € {property.pricePeriod === 'DAY' ? '/jour' : property.pricePeriod === 'WEEK' ? '/semaine' : '/mois'}</div>
-              </div>
-              <div className="text-xs text-gray-400 truncate mt-2 min-h-[1.5em] max-h-[2.5em] overflow-hidden"><span className="font-semibold">Description :</span> {property.description}</div>
-              {/* Miniatures supplémentaires */}
-              {property.photos && property.photos.length > 1 && (
-                <div className="flex gap-2 mt-2">
-                  {property.photos.slice(1, 4).map((src, i) => (
-                    <img key={i} src={src} alt={`Photo ${i + 2}`} className="w-12 h-12 object-cover rounded-lg border border-gray-100 shadow-sm" loading="lazy" />
+    <ImmersiveLayout>
+      <section className="w-full max-w-7xl mx-auto flex flex-col gap-8 items-center animate-fade-in">
+        {/* En-tête */}
+        <div className="text-center mb-8">
+          <h1 className="text-5xl md:text-6xl font-extrabold text-center text-primary drop-shadow-lg mb-4 tracking-tight">
+            Découvrez nos Propriétés
+          </h1>
+          <p className="text-lg text-secondary max-w-2xl mx-auto">
+            Trouvez la propriété parfaite parmi {properties.length} biens disponibles à la location
+          </p>
+        </div>
+
+        {/* Barre de recherche et filtres */}
+        <div className="card-shadow rounded-3xl p-6 mb-8 w-full max-w-5xl">
+          {/* Recherche principale */}
+          <div className="relative mb-4">
+            <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-secondary" />
+            <input
+              type="text"
+              placeholder="Rechercher par titre, adresse ou description..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:outline-none transition-colors text-lg"
+            />
+          </div>
+
+          {/* Bouton pour afficher/masquer les filtres */}
+          <div className="flex justify-between items-center">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 px-4 py-2 bg-primary-light text-primary-700 rounded-lg hover:bg-primary-200 transition-colors"
+            >
+              <FunnelIcon className="w-5 h-5" />
+              Filtres avancés
+            </button>
+            
+            {(selectedCountry || selectedCity || priceRange.min || priceRange.max) && (
+              <button
+                onClick={clearFilters}
+                className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+              >
+                <XMarkIcon className="w-5 h-5" />
+                Effacer les filtres
+              </button>
+            )}
+          </div>
+
+          {/* Filtres détaillés */}
+          {showFilters && (
+            <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Pays</label>
+                <select
+                  value={selectedCountry}
+                  onChange={(e) => setSelectedCountry(e.target.value)}
+                  className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:border-purple-400 focus:outline-none"
+                >
+                  <option value="">Tous les pays</option>
+                  {countries.map(country => (
+                    <option key={country} value={country}>{country}</option>
                   ))}
-                  {property.photos.length > 4 && (
-                    <span className="text-xs text-gray-400 self-center">+{property.photos.length - 4} photos</span>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Ville</label>
+                <select
+                  value={selectedCity}
+                  onChange={(e) => setSelectedCity(e.target.value)}
+                  className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:border-purple-400 focus:outline-none"
+                >
+                  <option value="">Toutes les villes</option>
+                  {cities.map(city => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Prix minimum</label>
+                <input
+                  type="number"
+                  placeholder="Prix min"
+                  value={priceRange.min}
+                  onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
+                  className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:border-purple-400 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Prix maximum</label>
+                <input
+                  type="number"
+                  placeholder="Prix max"
+                  value={priceRange.max}
+                  onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
+                  className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:border-purple-400 focus:outline-none"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Résultats */}
+          <div className="mt-4 pt-4 border-t border-gray-200 text-sm text-gray-600">
+            {filteredProperties.length} propriété{filteredProperties.length > 1 ? 's' : ''} trouvée{filteredProperties.length > 1 ? 's' : ''}
+          </div>
+        </div>
+        {/* Grille des propriétés */}
+        {filteredProperties.length === 0 ? (
+          <div className="text-center py-20">
+            <div className="w-32 h-32 bg-primary-light rounded-full flex items-center justify-center mx-auto mb-6">
+              <HomeIcon className="w-16 h-16 text-secondary" />
+            </div>
+            <h3 className="text-2xl font-bold text-secondary mb-2">Aucune propriété trouvée</h3>
+            <p className="text-secondary text-lg">Essayez de modifier vos critères de recherche</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
+            {filteredProperties.map((property, idx) => (
+              <div
+                key={property.id}
+                className="card-shadow rounded-3xl overflow-hidden hover:scale-105 transition-all duration-300 cursor-pointer"
+                style={{ animationDelay: `${idx * 60}ms` }}
+                onClick={() => navigate(`/properties/${property.id}`)}
+              >
+                {/* Image */}
+                <div className="relative h-48 overflow-hidden">
+                  {property.photos && property.photos.length > 0 ? (
+                    <img
+                      src={property.photos[0]}
+                      alt={property.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-surface-secondary flex items-center justify-center">
+                      <HomeIcon className="w-16 h-16 text-secondary" />
+                    </div>
+                  )}
+                  
+                  {/* Bouton favoris */}
+                  <div className="absolute top-4 left-4">
+                    <FavoriteButton
+                      propertyId={property.id}
+                      isFavorite={isFavorite(property.id)}
+                      onToggle={toggleFavorite}
+                      variant="overlay"
+                      size="md"
+                    />
+                  </div>
+                  
+                  {/* Badge prix */}
+                  <div className="absolute top-4 right-4">
+                    <div className="px-3 py-1 bg-success text-white rounded-full text-sm font-bold shadow-lg">
+                      {formatPrice(property.price || 0, property.pricePeriod || 'MONTH')}
+                    </div>
+                  </div>
+
+                  {/* Badge nombre de photos */}
+                  {property.photos && property.photos.length > 1 && (
+                    <div className="absolute bottom-4 left-4">
+                      <div className="px-2 py-1 bg-surface/80 text-secondary rounded-full text-xs font-bold shadow">
+                        {property.photos.length} photos
+                      </div>
+                    </div>
                   )}
                 </div>
-              )}
-              <div className="flex-1" /> {/* pousse le bouton en bas */}
-              <button
-                type="button"
-                className="mt-4 w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-tr from-primary-500 via-pink-400 to-blue-400 text-white font-semibold shadow hover:scale-105 transition focus:outline-none focus:ring-2 focus:ring-primary-400 text-sm"
-                tabIndex={0}
-                aria-label={`Voir les détails du bien ${property.title}`}
-                onClick={e => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  navigate(`/properties/${property.id}`);
-                }}
-              >
-                Détails
-              </button>
-            </div>
-            {/* Effet de survol moderne */}
-            <div className="absolute inset-0 rounded-3xl pointer-events-none group-hover:ring-4 group-hover:ring-primary-200/40 transition"></div>
-          </Link>
-        ))}
-      </div>
-      {properties.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <img src="/empty-state.svg" alt="Aucun bien" className="w-32 h-32 mb-4 opacity-70" />
-          <div className="text-gray-400 text-lg font-medium">Aucun bien pour le moment.<br/>Ajoutez votre premier bien pour commencer !</div>
-        </div>
-      )}
-    </div>
+
+                {/* Contenu */}
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xl font-bold text-gray-800 truncate">
+                      {property.title || 'Propriété sans titre'}
+                    </h3>
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                      property.isAvailable 
+                        ? 'bg-green-100 text-green-700 border border-green-200' 
+                        : 'bg-red-100 text-red-600 border border-red-200'
+                    }`}>
+                      {property.isAvailable ? 'Disponible' : 'Non disponible'}
+                    </span>
+                  </div>
+                  
+                  {property.address && (
+                    <div className="flex items-center gap-1 text-gray-500 mb-3">
+                      <MapPinIcon className="w-4 h-4" />
+                      <span className="text-sm truncate">{property.address}, {property.city}</span>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2 text-sm text-gray-600 mb-3">
+                    <div><span className="font-semibold">Région:</span> {property.region}</div>
+                    <div><span className="font-semibold">Pays:</span> {property.country}</div>
+                    {property.area && (
+                      <div className="flex items-center gap-1 text-primary-600">
+                        <Squares2X2Icon className="w-4 h-4" />
+                        <span className="font-semibold">{property.area}m²</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1 text-primary-600">
+                      <CurrencyEuroIcon className="w-4 h-4" />
+                      <span className="font-semibold">{property.price}€</span>
+                    </div>
+                  </div>
+
+                  {property.description && (
+                    <p className="text-gray-600 text-sm mb-4 line-clamp-2 overflow-hidden">
+                      {property.description}
+                    </p>
+                  )}
+
+                  {/* Photos miniatures */}
+                  {property.photos && property.photos.length > 1 && (
+                    <div className="flex gap-2 mb-4">
+                      {property.photos.slice(1, 4).map((src, i) => (
+                        <img 
+                          key={i} 
+                          src={src} 
+                          alt={`Photo ${i + 2}`} 
+                          className="w-12 h-12 object-cover rounded-lg border border-gray-100 shadow-sm" 
+                        />
+                      ))}
+                      {property.photos.length > 4 && (
+                        <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-xs text-gray-500 font-semibold">
+                          +{property.photos.length - 4}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  <Button
+                    variant="primary"
+                    className="w-full gradient-primary text-white font-bold shadow hover:scale-105 transition"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/properties/${property.id}`);
+                    }}
+                  >
+                    Découvrir
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </ImmersiveLayout>
   );
 };

@@ -86,8 +86,7 @@ npx prisma generate
 src/
 ├── components/          # Reusable UI components
 │   ├── Button.tsx      # Custom button component
-│   ├── Card.tsx        # Card components
-│   └── Navbar.tsx      # Navigation component
+│   └── Card.tsx        # Card components
 ├── pages/              # Application pages
 │   ├── HomePage.tsx    # Landing page
 │   ├── AuthPage.tsx    # Wallet authentication

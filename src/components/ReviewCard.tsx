@@ -13,8 +13,20 @@ interface ReviewCardProps {
 export const ReviewCard: React.FC<ReviewCardProps> = ({ review, currentUser, onDelete, onAskDelete }) => (
   <div className="p-4 bg-primary-50 rounded-xl shadow-sm flex flex-col gap-2">
     <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <UserIcon className="w-8 h-8 text-primary-500" />
+      <div className="flex items-center gap-3">
+        {/* Avatar de l'utilisateur */}
+        <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-primary-200 bg-white flex items-center justify-center flex-shrink-0">
+          {review.user?.profileImage ? (
+            <img 
+              src={review.user.profileImage} 
+              alt={`Photo de profil de ${review.user.username || 'Utilisateur'}`} 
+              className="w-full h-full object-cover" 
+              loading="lazy" 
+            />
+          ) : (
+            <UserIcon className="w-6 h-6 text-primary-500" />
+          )}
+        </div>
         <div className="flex flex-col">
           <span className="text-primary-700 font-semibold">{review.user && typeof review.user.username === 'string' && review.user.username.trim() ? review.user.username : 'Utilisateur inconnu'}</span>
           <div className="flex gap-1">

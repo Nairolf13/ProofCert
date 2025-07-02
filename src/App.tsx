@@ -6,7 +6,7 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-100 flex">
+        <div className="min-h-screen bg-app-background flex">
           {/* Sidebar/Navbar */}
           <AppRouter />
         </div>

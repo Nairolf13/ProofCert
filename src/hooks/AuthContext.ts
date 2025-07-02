@@ -10,6 +10,7 @@ export interface AuthContextProps {
   connectWallet: () => Promise<void>;
   disconnect: () => void;
   refreshUser?: () => Promise<void>;
+  updateUser: (updatedUser: User) => void;
 }
 
 export const AuthContext = createContext<AuthContextProps | undefined>(undefined);

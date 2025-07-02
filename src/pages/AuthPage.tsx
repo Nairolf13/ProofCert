@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from '../components/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { UserIcon, EnvelopeIcon, LockClosedIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { validatePassword } from '../utils/auth';
 
 type AuthMode = 'login' | 'register';
 
 export const AuthPage: React.FC = () => {
-  const [mode, setMode] = useState<AuthMode>('login');
+  const [searchParams] = useSearchParams();
+  const urlMode = searchParams.get('mode') as AuthMode;
+  const [mode, setMode] = useState<AuthMode>(urlMode || 'login');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -34,6 +35,15 @@ export const AuthPage: React.FC = () => {
     }
   }, [isAuthenticated, navigate]);
 
+  // Surveiller les changements d'URL pour mettre à jour le mode
+  useEffect(() => {
+    const urlMode = searchParams.get('mode') as AuthMode;
+    if (urlMode && (urlMode === 'login' || urlMode === 'register')) {
+      setMode(urlMode);
+      resetForm();
+    }
+  }, [searchParams]);
+
   const resetForm = () => {
     setEmail('');
     setUsername('');
@@ -57,11 +67,11 @@ export const AuthPage: React.FC = () => {
     try {
       if (mode === 'register') {
         if (!email || !username || !password || !confirmPassword) {
-          throw new Error('Please fill in all fields');
+          throw new Error('Veuillez remplir tous les champs');
         }
         
         if (password !== confirmPassword) {
-          throw new Error('Passwords do not match');
+          throw new Error('Les mots de passe ne correspondent pas');
         }
         
         const passwordValidation = validatePassword(password);
@@ -72,13 +82,13 @@ export const AuthPage: React.FC = () => {
         await register({ email, username, password, confirmPassword });
       } else {
         if (!email || !password) {
-          throw new Error('Please fill in all fields');
+          throw new Error('Veuillez remplir tous les champs');
         }
         
         await login({ emailOrUsername: email, password });
       }
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'An error occurred');
+      setError(error instanceof Error ? error.message : 'Une erreur est survenue');
     } finally {
       setIsLoading(false);
     }
@@ -90,38 +100,52 @@ export const AuthPage: React.FC = () => {
     : email && password;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full">
-        <Card>
-          <CardHeader className="text-center">
-            <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <UserIcon className="w-8 h-8 text-primary-600" />
+    <div className="min-h-screen w-full bg-surface-secondary flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Éléments décoratifs en arrière-plan */}
+      <div className="absolute inset-0 opacity-5">
+        <div className="absolute top-10 left-10 w-32 h-32 bg-primary rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-10 right-10 w-40 h-40 bg-accent rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-secondary rounded-full blur-2xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+      </div>
+
+      <div className="max-w-md w-full relative z-10">
+        <div className="form-modern">
+          {/* En-tête avec design moderne */}
+          <div className="gradient-primary px-8 py-10 text-center relative">
+            <div className="absolute inset-0 bg-black/10"></div>
+            <div className="relative z-10">
+              <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-6 backdrop-blur-lg border border-white/30">
+                <UserIcon className="w-10 h-10 text-white drop-shadow-lg" />
+              </div>
+              <h1 className="text-3xl font-black text-white drop-shadow-lg">
+                {mode === 'register' ? 'Rejoignez-nous' : 'Bon retour !'}
+              </h1>
+              <p className="text-white/90 mt-2 text-lg font-medium">
+                {mode === 'register' 
+                  ? 'Créez votre compte pour certifier vos preuves' 
+                  : 'Connectez-vous à votre espace sécurisé'}
+              </p>
             </div>
-            <CardTitle className="text-2xl">
-              {mode === 'register' ? 'Create Account' : 'Welcome Back'}
-            </CardTitle>
-            <p className="text-gray-600 mt-2">
-              {mode === 'register' 
-                ? 'Create your account to start certifying proofs securely' 
-                : 'Sign in to access your certified proofs'}
-            </p>
-          </CardHeader>
+          </div>
           
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
-                  {error}
+          <div className="px-8 py-8">
+            <form onSubmit={handleSubmit} className="space-y-6">              {error && (
+                <div className="bg-red-50/80 border-2 border-red-200 text-red-700 px-4 py-3 rounded-2xl text-sm font-medium backdrop-blur-sm animate-shake">
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-red-500 rounded-full mr-3"></div>
+                    {error}
+                  </div>
                 </div>
               )}
-              
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                  {mode === 'login' ? 'Email or Username' : 'Email'}
+
+              {/* Champ Email */}
+              <div className="space-y-2">
+                <label htmlFor="email" className="block text-sm font-bold text-secondary">
+                  {mode === 'login' ? 'Email ou nom d\'utilisateur' : 'Adresse email'}
                 </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <EnvelopeIcon className="h-5 w-5 text-gray-400" />
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
+                    <EnvelopeIcon className="h-5 w-5 text-secondary group-focus-within:text-primary transition-colors" />
                   </div>
                   <input
                     id="email"
@@ -129,20 +153,21 @@ export const AuthPage: React.FC = () => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
-                    placeholder={mode === 'register' ? 'your@email.com' : 'Email or username'}
+                    className="input-focus-glow block w-full pl-12 pr-4 py-4 border-2 border-light rounded-2xl leading-5 bg-surface backdrop-blur-sm placeholder-gray-400 focus:outline-none focus:ring-0 transition-all duration-200 text-lg font-medium"
+                    placeholder={mode === 'register' ? 'votre@email.com' : 'Email ou nom d\'utilisateur'}
                   />
                 </div>
               </div>
 
+              {/* Champ Username (inscription seulement) */}
               {mode === 'register' && (
-                <div>
-                  <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-                    Username
+                <div className="space-y-2">
+                  <label htmlFor="username" className="block text-sm font-bold text-secondary">
+                    Nom d'utilisateur
                   </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <UserIcon className="h-5 w-5 text-gray-400" />
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
+                      <UserIcon className="h-5 w-5 text-secondary group-focus-within:text-primary transition-colors" />
                     </div>
                     <input
                       id="username"
@@ -150,20 +175,21 @@ export const AuthPage: React.FC = () => {
                       required
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
-                      placeholder="Choose a username"
+                      className="input-focus-glow block w-full pl-12 pr-4 py-4 border-2 border-light rounded-2xl leading-5 bg-surface backdrop-blur-sm placeholder-gray-400 focus:outline-none focus:ring-0 transition-all duration-200 text-lg font-medium"
+                      placeholder="Choisissez un nom d'utilisateur"
                     />
                   </div>
                 </div>
               )}
 
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                  Password
+              {/* Champ Mot de passe */}
+              <div className="space-y-2">
+                <label htmlFor="password" className="block text-sm font-bold text-secondary">
+                  Mot de passe
                 </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <LockClosedIcon className="h-5 w-5 text-gray-400" />
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
+                    <LockClosedIcon className="h-5 w-5 text-secondary group-focus-within:text-primary transition-colors" />
                   </div>
                   <input
                     id="password"
@@ -171,48 +197,52 @@ export const AuthPage: React.FC = () => {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
-                    placeholder="Enter your password"
+                    className="input-focus-glow block w-full pl-12 pr-12 py-4 border-2 border-light rounded-2xl leading-5 bg-surface backdrop-blur-sm placeholder-gray-400 focus:outline-none focus:ring-0 transition-all duration-200 text-lg font-medium"
+                    placeholder="Entrez votre mot de passe"
                   />
                   <button
                     type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center z-10 hover:bg-gray-100 rounded-r-2xl transition-colors"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? (
-                      <EyeSlashIcon className="h-5 w-5 text-gray-400" />
+                      <EyeSlashIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                     ) : (
-                      <EyeIcon className="h-5 w-5 text-gray-400" />
+                      <EyeIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                     )}
                   </button>
                 </div>
                 
+                {/* Validation du mot de passe (inscription) */}
                 {mode === 'register' && password && (
-                  <div className="mt-2 text-xs space-y-1">
-                    {passwordValidation.errors.map((error, index) => (
-                      <div key={index} className="text-red-600 flex items-center">
-                        <span className="mr-1">•</span>
-                        {error}
-                      </div>
-                    ))}
-                    {passwordValidation.isValid && (
-                      <div className="text-green-600 flex items-center">
-                        <span className="mr-1">✓</span>
-                        Password meets all requirements
-                      </div>
-                    )}
+                  <div className="mt-3 p-4 bg-surface-secondary rounded-2xl backdrop-blur-sm border border-light">
+                    <div className="space-y-2">
+                      {passwordValidation.errors.map((error, index) => (
+                        <div key={index} className="text-error flex items-center text-sm font-medium">
+                          <div className="w-1.5 h-1.5 bg-red-500 rounded-full mr-3"></div>
+                          {error}
+                        </div>
+                      ))}
+                      {passwordValidation.isValid && (
+                        <div className="text-success flex items-center text-sm font-medium">
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-3"></div>
+                          Mot de passe conforme à tous les critères
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
 
+              {/* Confirmation mot de passe (inscription seulement) */}
               {mode === 'register' && (
-                <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                    Confirm Password
+                <div className="space-y-2">
+                  <label htmlFor="confirmPassword" className="block text-sm font-bold text-secondary">
+                    Confirmez le mot de passe
                   </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <LockClosedIcon className="h-5 w-5 text-gray-400" />
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
+                      <LockClosedIcon className="h-5 w-5 text-secondary group-focus-within:text-success transition-colors" />
                     </div>
                     <input
                       id="confirmPassword"
@@ -220,33 +250,34 @@ export const AuthPage: React.FC = () => {
                       required
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
-                      placeholder="Confirm your password"
+                      className="input-focus-glow block w-full pl-12 pr-12 py-4 border-2 border-light rounded-2xl leading-5 bg-surface backdrop-blur-sm placeholder-gray-400 focus:outline-none focus:ring-0 transition-all duration-200 text-lg font-medium"
+                      placeholder="Confirmez votre mot de passe"
                     />
                     <button
                       type="button"
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center z-10 hover:bg-gray-100 rounded-r-2xl transition-colors"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     >
                       {showConfirmPassword ? (
-                        <EyeSlashIcon className="h-5 w-5 text-gray-400" />
+                        <EyeSlashIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                       ) : (
-                        <EyeIcon className="h-5 w-5 text-gray-400" />
+                        <EyeIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                       )}
                     </button>
                   </div>
                   
+                  {/* Validation de la confirmation */}
                   {confirmPassword && (
-                    <div className="mt-1 text-xs">
+                    <div className="mt-2">
                       {password === confirmPassword ? (
-                        <div className="text-green-600 flex items-center">
-                          <span className="mr-1">✓</span>
-                          Passwords match
+                        <div className="text-success flex items-center text-sm font-medium">
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-3"></div>
+                          Les mots de passe correspondent
                         </div>
                       ) : (
-                        <div className="text-red-600 flex items-center">
-                          <span className="mr-1">•</span>
-                          Passwords do not match
+                        <div className="text-error flex items-center text-sm font-medium">
+                          <div className="w-1.5 h-1.5 bg-red-500 rounded-full mr-3"></div>
+                          Les mots de passe ne correspondent pas
                         </div>
                       )}
                     </div>
@@ -254,29 +285,44 @@ export const AuthPage: React.FC = () => {
                 </div>
               )}
 
-              <Button
-                type="submit"
-                className="w-full"
-                size="lg"
-                disabled={!isFormValid || isLoading}
-                isLoading={isLoading}
-              >
-                {mode === 'register' ? 'Create Account' : 'Sign In'}
-              </Button>
+              {/* Bouton de soumission */}
+              <div className="pt-4">
+                <Button
+                  type="submit"
+                  className={`w-full py-4 text-lg font-bold rounded-2xl shadow-xl transition-all duration-200 ${
+                    !isFormValid || isLoading 
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                      : 'gradient-primary text-white hover:scale-105 hover:shadow-2xl active:scale-95'
+                  }`}
+                  disabled={!isFormValid || isLoading}
+                  isLoading={isLoading}
+                >
+                  {mode === 'register' ? 'Créer mon compte' : 'Se connecter'}
+                </Button>
+              </div>
             </form>
 
-            <div className="mt-6 text-center">
+            {/* Lien de changement de mode */}
+            <div className="mt-8 text-center">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-light"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-4 bg-surface text-secondary font-medium">ou</span>
+                </div>
+              </div>
               <button
                 onClick={() => switchMode(mode === 'register' ? 'login' : 'register')}
-                className="text-sm text-primary-600 hover:text-primary-500"
+                className="mt-4 text-lg font-bold text-primary hover:scale-105 transition-transform duration-200"
               >
                 {mode === 'register' 
-                  ? 'Already have an account? Sign in' 
-                  : "Don't have an account? Create one"}
+                  ? 'J\'ai déjà un compte' 
+                  : 'Créer un nouveau compte'}
               </button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );

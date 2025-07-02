@@ -55,9 +55,14 @@ router.get('/properties', authenticateToken, async (req, res) => {
     if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
     let properties;
     if (user.role === 'OWNER') {
-      properties = await prisma.property.findMany({ where: { ownerId: user.id }, include: { owner: true } });
+      properties = await prisma.property.findMany({ 
+        where: { ownerId: user.id }, 
+        include: { owner: { select: { id: true, username: true, email: true, profileImage: true } } } 
+      });
     } else {
-      properties = await prisma.property.findMany({ include: { owner: true } });
+      properties = await prisma.property.findMany({ 
+        include: { owner: { select: { id: true, username: true, email: true, profileImage: true } } } 
+      });
     }
     res.json(properties);
   } catch {
@@ -70,7 +75,14 @@ router.get('/properties/:id', authenticateToken, async (req, res) => {
   const user = req.user;
   try {
     if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
-    const property = await prisma.property.findUnique({ where: { id: req.params.id }, include: { owner: true, proofs: true, rentals: true } });
+    const property = await prisma.property.findUnique({ 
+      where: { id: req.params.id }, 
+      include: { 
+        owner: { select: { id: true, username: true, email: true, profileImage: true } }, 
+        proofs: true, 
+        rentals: true 
+      } 
+    });
     if (!property) { res.status(404).json({ error: 'Not found' }); return; }
     // Plus de restriction d'accès ici : tout utilisateur connecté peut voir le détail
     res.json(property);
@@ -142,9 +154,23 @@ router.get('/rentals', authenticateToken, async (req, res) => {
     if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
     let rentals;
     if (user.role === 'OWNER') {
-      rentals = await prisma.rental.findMany({ where: { property: { ownerId: user.id } }, include: { property: true, tenant: true } });
+      rentals = await prisma.rental.findMany({ 
+        where: { property: { ownerId: user.id } }, 
+        include: { 
+          property: true, 
+          tenant: true,
+          proofs: true
+        } 
+      });
     } else {
-      rentals = await prisma.rental.findMany({ where: { tenantId: user.id }, include: { property: true, tenant: true } });
+      rentals = await prisma.rental.findMany({ 
+        where: { tenantId: user.id }, 
+        include: { 
+          property: true, 
+          tenant: true,
+          proofs: true
+        } 
+      });
     }
     res.json(rentals);
   } catch {
@@ -255,6 +281,40 @@ router.delete('/reviews/:id', authenticateToken, async (req, res) => {
     res.status(204).send();
   } catch {
     res.status(500).json({ error: 'Erreur serveur lors de la suppression de l\'avis' });
+  }
+});
+
+// Route publique pour récupérer TOUTES les propriétés disponibles (pour la recherche/découverte)
+router.get('/properties/public/all', authenticateToken, async (req, res) => {
+  try {
+    // Récupère toutes les propriétés disponibles, peu importe le rôle de l'utilisateur
+    const properties = await prisma.property.findMany({ 
+      where: { isAvailable: true },
+      include: { 
+        owner: { select: { id: true, username: true, email: true, profileImage: true } },
+        rentals: true
+      }
+    });
+    res.json(properties);
+  } catch {
+    res.status(500).json({ error: 'Erreur serveur lors de la récupération des biens publics' });
+  }
+});
+
+// Route vraiment publique (sans authentification) pour la découverte
+router.get('/properties/discover', async (req, res) => {
+  try {
+    // Récupère toutes les propriétés disponibles sans authentification
+    const properties = await prisma.property.findMany({ 
+      where: { isAvailable: true },
+      include: { 
+        owner: { select: { id: true, username: true, email: true, profileImage: true } },
+        rentals: true
+      }
+    });
+    res.json(properties);
+  } catch {
+    res.status(500).json({ error: 'Erreur serveur lors de la récupération des biens publics' });
   }
 });
 

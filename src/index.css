@@ -1,13 +1,320 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import './styles/theme-colors.css';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ================================
+   SYSTÈME DE COULEURS PROOFCERT
+   ================================ */
+
+:root {
+  /* === COULEURS PRINCIPALES === */
+  /* Modifiez ces couleurs pour changer tout le thème du site */
+  
+  /* Couleurs primaires (bleu professionnel) */
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+  
+  /* Couleurs secondaires (gris moderne) */
+  --color-secondary-50: #f8fafc;
+  --color-secondary-100: #f1f5f9;
+  --color-secondary-200: #e2e8f0;
+  --color-secondary-300: #cbd5e1;
+  --color-secondary-400: #94a3b8;
+  --color-secondary-500: #64748b;
+  --color-secondary-600: #475569;
+  --color-secondary-700: #334155;
+  --color-secondary-800: #1e293b;
+  --color-secondary-900: #0f172a;
+  
+  /* Couleurs d'accent (vert succès) */
+  --color-accent-50: #f0fdf4;
+  --color-accent-100: #dcfce7;
+  --color-accent-200: #bbf7d0;
+  --color-accent-300: #86efac;
+  --color-accent-400: #4ade80;
+  --color-accent-500: #22c55e;
+  --color-accent-600: #16a34a;
+  --color-accent-700: #15803d;
+  --color-accent-800: #166534;
+  --color-accent-900: #14532d;
+  
+  /* États et notifications */
+  --color-success: var(--color-accent-500);
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: var(--color-primary-500);
+  
+  /* Arrière-plans */
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: var(--color-secondary-50);
+  --color-bg-tertiary: var(--color-secondary-100);
+  --color-bg-overlay: rgba(15, 23, 42, 0.1);
+  
+  /* Textes */
+  --color-text-primary: var(--color-secondary-900);
+  --color-text-secondary: var(--color-secondary-600);
+  --color-text-tertiary: var(--color-secondary-400);
+  --color-text-inverse: #ffffff;
+  
+  /* Bordures */
+  --color-border-light: var(--color-secondary-200);
+  --color-border-medium: var(--color-secondary-300);
+  --color-border-strong: var(--color-secondary-400);
+  
+  /* Ombres */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  
+  /* Rayons de bordure */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+}
+
+/* ================================
+   STYLES DE BASE
+   ================================ */
+
 body {
   font-family: 'Inter', system-ui, sans-serif;
   margin: 0;
-  background-color: #fafafa;
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* ================================
+   CLASSES UTILITAIRES PERSONNALISÉES
+   ================================ */
+
+/* Couleurs de fond */
+.bg-primary { background-color: var(--color-primary-500); }
+.bg-primary-light { background-color: var(--color-primary-100); }
+.bg-primary-dark { background-color: var(--color-primary-700); }
+.bg-secondary { background-color: var(--color-secondary-500); }
+.bg-accent { background-color: var(--color-accent-500); }
+.bg-accent-light { background-color: var(--color-accent-100); }
+.bg-surface { background-color: var(--color-bg-primary); }
+.bg-surface-secondary { background-color: var(--color-bg-secondary); }
+
+/* Couleurs de texte */
+.text-primary { color: var(--color-primary-500); }
+.text-primary-dark { color: var(--color-primary-700); }
+.text-secondary { color: var(--color-text-secondary); }
+.text-accent { color: var(--color-accent-500); }
+.text-success { color: var(--color-success); }
+.text-warning { color: var(--color-warning); }
+.text-error { color: var(--color-error); }
+
+/* Bordures */
+.border-primary { border-color: var(--color-primary-500); }
+.border-accent { border-color: var(--color-accent-500); }
+.border-light { border-color: var(--color-border-light); }
+.border-medium { border-color: var(--color-border-medium); }
+.border-warning { border-color: var(--color-warning); }
+
+/* Gradients professionnels */
+.gradient-primary {
+  background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-600));
+}
+
+.gradient-accent {
+  background: linear-gradient(135deg, var(--color-accent-500), var(--color-accent-600));
+}
+
+.gradient-surface {
+  background: linear-gradient(135deg, var(--color-bg-primary), var(--color-bg-secondary));
+}
+
+/* ================================
+   SCROLLBAR PERSONNALISÉE
+   ================================ */
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary);
+  border-radius: 2px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--color-border-medium);
+  border-radius: 2px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-strong);
+}
+
+/* Firefox scrollbar */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-medium) var(--color-bg-secondary);
+}
+
+/* ================================
+   ANIMATIONS
+   ================================ */
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gradientFlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.animate-gradient-flow {
+  background-size: 200% 200%;
+  animation: gradientFlow 3s ease infinite;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+/* ================================
+   COMPOSANTS AMÉLIORÉS
+   ================================ */
+
+/* Focus et états interactifs */
+.input-focus-glow:focus {
+  box-shadow: 0 0 0 3px var(--color-primary-100), 0 0 20px rgba(59, 130, 246, 0.1);
+  border-color: var(--color-primary-500);
+}
+
+/* Boutons avec états de chargement */
+.button-loading {
+  position: relative;
+  overflow: hidden;
+}
+
+.button-loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: loading-shine 1.5s infinite;
+}
+
+@keyframes loading-shine {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* Cartes avec ombre douce */
+.card-shadow {
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-border-light);
+  background-color: var(--color-bg-primary);
+}
+
+.card-shadow:hover {
+  box-shadow: var(--shadow-xl);
+  transform: translateY(-2px);
+  transition: all 0.3s ease;
+}
+
+/* ================================
+   THÈME PROFESSIONNEL
+   ================================ */
+
+/* Navbar professionnelle */
+.navbar-professional {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--color-border-light);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Formulaires modernes */
+.form-modern {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+}
+
+/* Boutons professionnels */
+.btn-primary {
+  background: var(--color-primary-500);
+  color: var(--color-text-inverse);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: var(--color-primary-600);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-secondary {
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-medium);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: var(--color-bg-secondary);
+  border-color: var(--color-border-strong);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }

@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { MediaCaptureComponent } from '../components/MediaCaptureComponent';
 import { MediaPreview } from '../components/MediaPreview';
 import { ProofType } from '../types';
+import { proofsApi } from '../api/proofs';
 
 export const AddProofPage: React.FC = () => {
+  const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [type, setType] = useState<ProofType>('TEXT');
@@ -42,12 +45,65 @@ export const AddProofPage: React.FC = () => {
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
-    // TODO: API call
-    setIsSubmitting(false);
+
+    try {
+      // Validation des champs requis
+      if (!title.trim()) {
+        throw new Error('Le titre est obligatoire');
+      }
+
+      if (type === 'TEXT' && !content.trim()) {
+        throw new Error('Le contenu est obligatoire pour une preuve textuelle');
+      }
+
+      if ((type === 'IMAGE' || type === 'VIDEO' || type === 'AUDIO' || type === 'DOCUMENT') && !file) {
+        throw new Error('Un fichier est requis pour ce type de preuve');
+      }
+
+      // Pour les fichiers, on les stocke temporairement en base64
+      let fileData: string | null = null;
+      if (file && (type === 'IMAGE' || type === 'VIDEO' || type === 'AUDIO' || type === 'DOCUMENT')) {
+        fileData = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error('Erreur lors de la lecture du fichier'));
+          reader.readAsDataURL(file);
+        });
+      }
+
+      // Préparer les données de la preuve
+      const proofData = {
+        title: title.trim(),
+        content: type === 'TEXT' ? content.trim() : `Fichier: ${file?.name || 'Fichier sans nom'}`,
+        contentType: type,
+        isPublic: false, // Par défaut, les preuves sont privées
+      };
+
+      // Créer la preuve via l'API
+      const createdProof = await proofsApi.create(proofData);
+      
+      // Stocker le fichier temporairement avec l'ID de la preuve
+      if (fileData && createdProof.id) {
+        localStorage.setItem(`proof_file_${createdProof.id}`, fileData);
+        localStorage.setItem(`proof_file_type_${createdProof.id}`, file?.type || 'application/octet-stream');
+        localStorage.setItem(`proof_file_name_${createdProof.id}`, file?.name || 'fichier');
+      }
+      
+      // Afficher un message de succès et rediriger
+      console.log('Preuve créée avec succès:', createdProof);
+      navigate(`/proof/${createdProof.id}`);
+    } catch (error) {
+      console.error('Erreur lors de la création de la preuve:', error);
+      setError(error instanceof Error ? error.message : 'Une erreur est survenue lors de la création de la preuve');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-100 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 flex flex-col" style={{
+      background: `linear-gradient(135deg, var(--color-bg-secondary), var(--color-bg-primary), var(--color-primary-50))`
+    }}>
       <div className="flex flex-col items-center justify-center mt-8 mb-2">
         <img
           src="https://assets-global.website-files.com/63e3b7e7e7e7e7e7e7e7e7e7/63e3b7e7e7e7e7e7e7e7e7e7_house-illustration.svg"
@@ -55,7 +111,10 @@ export const AddProofPage: React.FC = () => {
           className="w-64 h-40 object-contain drop-shadow-xl animate-fade-in"
           style={{ animationDelay: '0.2s' }}
         />
-        <span className="mt-2 text-lg text-purple-500 font-semibold animate-fade-in" style={{ animationDelay: '0.4s' }}>
+        <span className="mt-2 text-lg font-semibold animate-fade-in" style={{ 
+          animationDelay: '0.4s',
+          color: 'var(--color-primary-600)'
+        }}>
           Ajoute une preuve, sécurise ton dossier !
         </span>
       </div>
@@ -73,7 +132,6 @@ export const AddProofPage: React.FC = () => {
               required
               autoFocus
             />
-            {/* Type selector modernisé */}
             <div className="flex flex-wrap gap-2 mb-2">
               <ProofTypeButton active={type === 'TEXT'} onClick={() => handleTypeChange('TEXT')}>Texte</ProofTypeButton>
               <ProofTypeButton active={type === 'IMAGE'} onClick={() => handleOpenMediaModal('photo')}>Photo</ProofTypeButton>
@@ -107,9 +165,13 @@ export const AddProofPage: React.FC = () => {
                   onClick={handleRemoveFile}
                   className="absolute top-2 right-2 z-10 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
                 >
-                  <span className="font-bold text-xs">✕</span>
+                  <span className="font-bold text-xs">×</span>
                 </button>
-                <span className="text-4xl mb-2">📄</span>
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-2">
+                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
                 <span className="text-base font-semibold text-gray-800 mb-1 truncate max-w-xs">{file.name}</span>
                 <span className="text-xs text-gray-500 mb-2">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
                 {file.type.startsWith('image/') && (
@@ -146,7 +208,7 @@ export const AddProofPage: React.FC = () => {
           <Button
             type="submit"
             isLoading={isSubmitting}
-            className="w-full py-3 rounded-xl bg-gradient-to-tr from-purple-500 via-pink-500 to-blue-500 text-white font-bold text-lg shadow-lg hover:scale-[1.03] hover:shadow-2xl active:scale-95 transition-all duration-150"
+            className="w-full py-3 rounded-xl gradient-primary text-white font-bold text-lg shadow-lg hover:scale-[1.03] hover:shadow-2xl active:scale-95 transition-all duration-150"
           >
             {isSubmitting ? 'Ajout en cours...' : 'Ajouter la preuve'}
           </Button>
@@ -184,7 +246,7 @@ const ProofTypeButton: React.FC<{ active: boolean; onClick: () => void; children
     type="button"
     onClick={onClick}
     className={`px-4 py-2 rounded-lg font-semibold border transition-all duration-150 text-sm
-      ${active ? 'bg-gradient-to-tr from-purple-500 via-pink-500 to-blue-500 text-white shadow-lg scale-105' : 'bg-white/70 border-gray-200 text-gray-700 hover:bg-purple-50'}`}
+      ${active ? 'gradient-primary text-white shadow-lg scale-105' : 'bg-white/70 border-gray-200 text-gray-700 hover:bg-primary-light'}`}
   >
     {children}
   </button>
@@ -233,7 +295,6 @@ const FloatingLabelTextarea: React.FC<{
   </div>
 );
 
-// Nouveau composant FileDropzone
 const FileDropzone: React.FC<{ onFile: (file: File) => void }> = ({ onFile }) => {
   const [dragActive, setDragActive] = useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -254,7 +315,7 @@ const FileDropzone: React.FC<{ onFile: (file: File) => void }> = ({ onFile }) =>
 
   return (
     <div
-      className={`flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-6 transition-all duration-150 cursor-pointer ${dragActive ? 'border-purple-500 bg-purple-50' : 'border-gray-300 bg-white/60'}`}
+      className={`flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-6 transition-all duration-150 cursor-pointer ${dragActive ? 'border-primary-500 bg-primary-light' : 'border-gray-300 bg-white/60'}`}
       onDragOver={e => { e.preventDefault(); setDragActive(true); }}
       onDragLeave={e => { e.preventDefault(); setDragActive(false); }}
       onDrop={handleDrop}

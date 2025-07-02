@@ -49,59 +49,127 @@ export const Calendar: React.FC<Pick<CalendarProps, 'bookings'>> = ({ bookings }
     }
   };
 
-  // Responsive grid: 7 cols desktop, 7 cols mobile, padding et taille adaptative
+  const monthNames = [
+    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+  ];
+
   return (
-    <div className="w-full max-w-lg mx-auto bg-white/90 rounded-3xl shadow-2xl border-2 border-white/70 p-4 md:p-8 flex flex-col items-center gap-4 animate-fade-in">
-      {/* Header navigation mois */}
-      <div className="flex items-center justify-between w-full mb-2 gap-2">
-        <button onClick={prevMonth} className="p-2 md:p-3 rounded-full bg-white shadow hover:bg-primary-100 text-primary-500 text-2xl font-bold transition active:scale-90" aria-label="Mois précédent">‹</button>
-        <span className="font-extrabold text-xl md:text-2xl text-primary-700 drop-shadow-sm select-none">
-          {new Date(year, month).toLocaleString('fr-FR', { month: 'long', year: 'numeric' })}
-        </span>
-        <button onClick={nextMonth} className="p-2 md:p-3 rounded-full bg-white shadow hover:bg-primary-100 text-primary-500 text-2xl font-bold transition active:scale-90" aria-label="Mois suivant">›</button>
-      </div>
-      {/* Jours de la semaine */}
-      <div className="grid grid-cols-7 gap-1 md:gap-2 text-center text-xs md:text-base font-bold text-primary-400 mb-1 select-none w-full">
-        {['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'].map(d => <div key={d}>{d}</div>)}
-      </div>
-      {/* Jours du mois */}
-      <div className="grid grid-cols-7 gap-1 md:gap-2 w-full">
-        {Array(firstDay === 0 ? 6 : firstDay - 1).fill(null).map((_, i) => <div key={i}></div>)}
-        {days.map(({ date, booked }) => {
-          const isToday = date === new Date().toISOString().slice(0, 10);
-          return (
-            <div key={date} className="flex items-center justify-center">
-              <span
-                className={`aspect-square w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center text-xs md:text-base font-bold
-                  border-2 transition-all duration-150
-                  ${booked ? 'bg-red-200 text-red-400 border-red-300 line-through cursor-not-allowed' : ''}
-                  ${isToday && !booked ? 'border-primary-400 bg-primary-50 text-primary-700 shadow' : ''}
-                  ${!booked ? 'bg-white hover:bg-primary-100 active:scale-95 cursor-pointer' : ''}
-                  select-none`}
-                aria-label={booked ? 'Jour réservé' : 'Jour disponible'}
-                tabIndex={-1}
-              >
-                {parseInt(date.split('-')[2], 10)}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-      {/* Légende et explication */}
-      <div className="flex flex-col items-center gap-2 mt-2 w-full">
-        <div className="flex flex-wrap items-center justify-center gap-3 text-xs md:text-sm">
-          <span className="inline-flex items-center gap-1"><span className="w-4 h-4 rounded-full bg-red-200 border border-red-400 inline-block"></span> <span className="text-red-500 font-semibold">Réservé</span></span>
-          <span className="inline-flex items-center gap-1"><span className="w-4 h-4 rounded-full bg-primary-400 border border-primary-500 inline-block"></span> <span className="text-primary-700 font-semibold">Aujourd’hui</span></span>
-          <span className="inline-flex items-center gap-1"><span className="w-4 h-4 rounded-full bg-white border border-gray-300 inline-block"></span> <span className="text-gray-500 font-semibold">Libre</span></span>
+    <div className="w-full max-w-md mx-auto relative">
+      {/* Calendrier principal avec design professionnel - hauteur fixe pour correspondre au formulaire */}
+      <div className="card-shadow rounded-2xl p-6 overflow-hidden relative h-[520px] flex flex-col bg-surface">
+        
+        {/* Motifs décoratifs subtils */}
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute top-2 right-2 w-16 h-16 bg-primary rounded-full blur-2xl"></div>
+          <div className="absolute bottom-2 left-2 w-12 h-12 bg-accent rounded-full blur-xl"></div>
         </div>
-        <div className="text-xs text-gray-400 mt-1 text-center">Les jours barrés sont déjà réservés. <span className="hidden md:inline">Sur mobile, glisse pour voir tout le mois.</span></div>
+
+        <div className="relative flex-1 flex flex-col">
+          {/* Header du calendrier */}
+          <div className="flex items-center justify-between mb-6">
+            <button 
+              onClick={prevMonth} 
+              className="w-10 h-10 rounded-full bg-primary-light border border-light hover:bg-primary-100 transition-all duration-200 flex items-center justify-center group shadow-sm"
+              aria-label="Mois précédent"
+            >
+              <svg className="w-5 h-5 text-primary group-hover:text-primary-dark transform group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            
+            <div className="text-center">
+              <h3 className="text-xl font-black text-primary tracking-tight">
+                {monthNames[month]}
+              </h3>
+              <p className="text-sm font-semibold text-secondary mt-1">{year}</p>
+            </div>
+            
+            <button 
+              onClick={nextMonth} 
+              className="w-10 h-10 rounded-full bg-primary-light border border-light hover:bg-primary-100 transition-all duration-200 flex items-center justify-center group shadow-sm"
+              aria-label="Mois suivant"
+            >
+              <svg className="w-5 h-5 text-primary group-hover:text-primary-dark transform group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Section principale du calendrier avec flex-grow */}
+          <div className="flex-1 flex flex-col">
+            {/* Jours de la semaine */}
+            <div className="grid grid-cols-7 gap-1 mb-3">
+              {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((day, index) => (
+                <div key={index} className="text-center py-2">
+                  <span className="text-xs font-bold text-secondary uppercase tracking-wide">
+                    {day}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Grille des jours - prend l'espace restant */}
+            <div className="grid grid-cols-7 gap-1 flex-1">
+              {/* Cases vides pour le début du mois */}
+              {Array(firstDay === 0 ? 6 : firstDay - 1).fill(null).map((_, i) => (
+                <div key={`empty-${i}`} className="h-9"></div>
+              ))}
+              
+              {/* Jours du mois */}
+              {days.map(({ date, booked }) => {
+                const dayNumber = parseInt(date.split('-')[2], 10);
+                const isToday = date === new Date().toISOString().slice(0, 10);
+                
+                return (
+                  <div key={date} className="flex items-center justify-center">
+                    <div
+                      className={`
+                        w-9 h-9 rounded-xl flex items-center justify-center text-sm font-semibold transition-all duration-200 cursor-pointer relative overflow-hidden
+                        ${isToday ? 
+                          'gradient-primary text-white shadow-lg scale-105 ring-2 ring-primary-light' : 
+                          booked ? 
+                            'bg-red-100 text-red-600 cursor-not-allowed' :
+                            'bg-surface text-secondary hover:bg-primary-light hover:text-primary hover:scale-105 border border-light hover:border-primary'
+                        }
+                      `}
+                    >
+                      {booked && (
+                        <div className="absolute inset-0 bg-red-400/20 flex items-center justify-center">
+                          <div className="w-6 h-0.5 bg-red-500 rounded rotate-45"></div>
+                        </div>
+                      )}
+                      <span className={booked ? 'opacity-60' : ''}>{dayNumber}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Légende en bas */}
+          <div className="mt-6 pt-4 border-t border-light">
+            <div className="flex items-center justify-center gap-4 text-xs">
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full gradient-primary"></div>
+                <span className="text-secondary font-medium">Aujourd'hui</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-red-100 relative">
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-2 h-0.5 bg-red-500 rounded rotate-45"></div>
+                  </div>
+                </div>
+                <span className="text-secondary font-medium">Réservé</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-surface border border-medium"></div>
+                <span className="text-secondary font-medium">Libre</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      {/* Animation douce */}
-      <style>{`
-        @media (max-width: 640px) {
-          .calendar-scroll { overflow-x: auto; }
-        }
-      `}</style>
     </div>
   );
 };

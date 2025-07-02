@@ -2,11 +2,31 @@ export interface User {
   id: string;
   email: string;
   username: string;
+  address?: string;
   walletAddress?: string;
   createdAt: string;
   updatedAt: string;
   profileImage?: string;
   role?: 'OWNER' | 'TENANT';
+}
+
+export interface Review {
+  id: string;
+  rating: number;
+  comment: string;
+  propertyId: string;
+  userId: string;
+  user?: User;
+  createdAt: string;
+}
+
+export interface Favorite {
+  id: string;
+  userId: string;
+  propertyId: string;
+  user?: User;
+  property?: Property;
+  createdAt: string;
 }
 
 export interface Proof {

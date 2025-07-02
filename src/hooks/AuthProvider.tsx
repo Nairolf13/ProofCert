@@ -81,12 +81,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  useEffect(() => {
-    console.log('[AuthProvider] Auth state:', { user, isAuthenticated, isAuthLoading });
-  }, [user, isAuthenticated, isAuthLoading]);
+  const updateUser = (updatedUser: User) => {
+    setUser(updatedUser);
+    localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+  };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isAuthLoading, register, login, connectWallet, disconnect, refreshUser }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isAuthLoading, register, login, connectWallet, disconnect, refreshUser, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

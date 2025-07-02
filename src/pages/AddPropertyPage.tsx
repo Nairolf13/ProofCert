@@ -189,11 +189,11 @@ export const AddPropertyPage: React.FC = () => {
   }, [country, region, city]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-100 flex flex-col">
+    <div className="min-h-screen bg-app-background flex flex-col">
       {/* Illustration immersive */}
       <div className="flex flex-col items-center justify-center mt-8 mb-2">
         <h2 className="text-2xl font-bold text-primary-700 mb-2">Ajouter un nouveau bien immobilier</h2>
-        <span className="mt-2 text-lg text-purple-500 font-semibold animate-fade-in" style={{ animationDelay: '0.4s' }}>
+        <span className="mt-2 text-lg text-primary-500 font-semibold animate-fade-in" style={{ animationDelay: '0.4s' }}>
           Un nouveau bien, une nouvelle aventure !
         </span>
       </div>
@@ -298,7 +298,7 @@ export const AddPropertyPage: React.FC = () => {
             <div className="col-span-1 md:col-span-2">
               <label className="block mb-1 font-semibold">Photos du bien</label>
               <div
-                className="flex flex-col items-center justify-center border-2 border-dashed border-purple-300 rounded-xl bg-purple-50/40 p-4 cursor-pointer hover:bg-purple-100 transition group"
+                className="flex flex-col items-center justify-center border-2 border-dashed border-primary-300 rounded-xl bg-primary-light p-4 cursor-pointer hover:bg-primary-100 transition group"
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 onClick={() => document.getElementById('property-photos-input')?.click()}
@@ -314,7 +314,7 @@ export const AddPropertyPage: React.FC = () => {
                   className="hidden"
                   onChange={handlePhotoChange}
                 />
-                <span className="text-purple-500 font-medium mb-2">Glissez-déposez ou cliquez pour ajouter des photos</span>
+                <span className="text-primary-500 font-medium mb-2">Glissez-déposez ou cliquez pour ajouter des photos</span>
                 <span className="text-xs text-gray-400">(Jusqu’à 5 images, JPEG/PNG)</span>
                 <div className="flex flex-wrap gap-2 mt-3 justify-center">
                   {photoPreviews.map((src, i) => (
@@ -342,7 +342,7 @@ export const AddPropertyPage: React.FC = () => {
           <Button
             type="submit"
             isLoading={isSubmitting}
-            className="w-full py-3 rounded-xl bg-gradient-to-tr from-purple-500 via-pink-500 to-blue-500 text-white font-bold text-lg shadow-lg hover:scale-[1.03] hover:shadow-2xl active:scale-95 transition-all duration-150"
+            className="w-full py-3 rounded-xl gradient-primary text-white font-bold text-lg shadow-lg hover:scale-[1.03] hover:shadow-2xl active:scale-95 transition-all duration-150"
           >
             {isSubmitting ? 'Création en cours...' : 'Créer le bien'}
           </Button>

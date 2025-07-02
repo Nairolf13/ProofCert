@@ -25,7 +25,7 @@ export const AddRentalPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10 bg-gradient-to-br from-blue-50 via-white to-purple-100 animate-fade-in">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10 bg-app-background animate-fade-in">
       <div className="w-full max-w-lg bg-white/80 rounded-3xl shadow-2xl p-8 space-y-7 border border-white/40 backdrop-blur-lg">
         <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 mb-2 drop-shadow-sm">Créer une location</h1>
         <form onSubmit={handleSubmit} className="space-y-4">
