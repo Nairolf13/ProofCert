@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from './Button';
+import { WalletInfo } from './WalletInfo';
 import {
   HomeIcon,
   ClipboardDocumentListIcon,
@@ -60,6 +61,9 @@ export const Navbar: React.FC = () => {
         })}
       </nav>
       <div className="mt-auto flex flex-col gap-3 w-full">
+        {/* Informations du wallet */}
+        <WalletInfo />
+        
         {isAuthenticated && user ? (
           <>
             <span className="text-xs text-secondary font-medium truncate max-w-[120px]">

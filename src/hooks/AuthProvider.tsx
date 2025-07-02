@@ -54,6 +54,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const connectWallet = async () => {
     setIsAuthLoading(true);
     try {
+      // Pour l'instant, on génère une adresse mock
+      // Dans une vraie intégration, on récupérerait l'adresse du wallet connecté
       const mockWalletAddress = `erd1${Math.random().toString(36).substring(2, 15)}`;
       const { user: updatedUser } = await userApi.connectWallet(mockWalletAddress);
       setUser(updatedUser);
@@ -64,12 +66,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const disconnect = () => {
-    userApi.disconnect();
-    setUser(null);
-    setIsAuthenticated(false);
-    localStorage.removeItem(USER_KEY);
-    localStorage.removeItem(TOKEN_KEY);
+  const disconnect = async () => {
+    try {
+      userApi.disconnect();
+    } catch (error) {
+      console.error('Error during disconnect:', error);
+    } finally {
+      setUser(null);
+      setIsAuthenticated(false);
+      localStorage.removeItem(USER_KEY);
+      localStorage.removeItem(TOKEN_KEY);
+    }
   };
 
   const refreshUser = async () => {

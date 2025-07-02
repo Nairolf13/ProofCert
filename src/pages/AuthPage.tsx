@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useMultiversX } from '../hooks/useMultiversX';
 import { Button } from '../components/Button';
-import { UserIcon, EnvelopeIcon, LockClosedIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { WalletConnectionModal } from '../components/WalletConnectionModal';
+import { UserIcon, EnvelopeIcon, LockClosedIcon, EyeIcon, EyeSlashIcon, WalletIcon } from '@heroicons/react/24/outline';
 import { validatePassword } from '../utils/auth';
 
 type AuthMode = 'login' | 'register';
@@ -15,13 +17,15 @@ export const AuthPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
+  const [showWalletModal, setShowWalletModal] = useState(false);
   
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   
-  const { register, login, isAuthenticated } = useAuth();
+  const { register, login, isAuthenticated, connectWallet } = useAuth();
+  const { isConnected: isWalletConnected, account: walletAccount } = useMultiversX();
   const navigate = useNavigate();
   const hasNavigated = useRef(false);
 
@@ -93,6 +97,32 @@ export const AuthPage: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  const handleWalletConnect = async () => {
+    try {
+      setIsLoading(true);
+      setError('');
+      
+      if (!isWalletConnected) {
+        setShowWalletModal(true);
+        return;
+      }
+      
+      await connectWallet();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Erreur de connexion wallet');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Détecter quand le wallet est connecté pour fermer la modal et connecter
+  useEffect(() => {
+    if (isWalletConnected && walletAccount && showWalletModal) {
+      setShowWalletModal(false);
+      handleWalletConnect();
+    }
+  }, [isWalletConnected, walletAccount, showWalletModal]);
 
   const passwordValidation = validatePassword(password);
   const isFormValid = mode === 'register' 
@@ -302,6 +332,33 @@ export const AuthPage: React.FC = () => {
               </div>
             </form>
 
+            {/* Séparateur */}
+            <div className="mt-8">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-light"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-4 bg-surface text-secondary font-medium">ou</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bouton de connexion Wallet */}
+            <div className="mt-6">
+              <Button
+                onClick={handleWalletConnect}
+                disabled={isLoading}
+                className="w-full py-4 text-lg font-bold rounded-2xl border-2 border-primary text-primary hover:bg-primary hover:text-white transition-all duration-200 flex items-center justify-center gap-3"
+              >
+                <WalletIcon className="w-6 h-6" />
+                {isWalletConnected && walletAccount 
+                  ? `Connecté: ${walletAccount.address.slice(0, 6)}...${walletAccount.address.slice(-4)}`
+                  : 'Se connecter avec MultiversX Wallet'
+                }
+              </Button>
+            </div>
+
             {/* Lien de changement de mode */}
             <div className="mt-8 text-center">
               <div className="relative">
@@ -324,6 +381,12 @@ export const AuthPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de connexion wallet */}
+      <WalletConnectionModal 
+        isOpen={showWalletModal} 
+        onClose={() => setShowWalletModal(false)} 
+      />
     </div>
   );
 };
