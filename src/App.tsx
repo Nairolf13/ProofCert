@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
-import { MultiversXProvider } from './providers/MultiversXProvider';
+import { MultiversXProvider } from './MultiversXAuth/providers/MultiversXProvider';
 import AppRouter from './router';
 import { WalletConnectionModal } from './components/WalletConnectionModal';
 

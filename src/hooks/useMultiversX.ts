@@ -1,10 +1,12 @@
-import { useContext } from 'react';
-import { MultiversXContext } from './MultiversXProvider';
+import { useGetAccountInfo, useGetIsLoggedIn } from '@multiversx/sdk-dapp/hooks';
 
 export const useMultiversX = () => {
-  const context = useContext(MultiversXContext);
-  if (context === undefined) {
-    throw new Error('useMultiversX must be used within a MultiversXProvider');
-  }
-  return context;
+  // Utilise les hooks du SDK officiel
+  const { account } = useGetAccountInfo();
+  const isLoggedIn = useGetIsLoggedIn();
+
+  return {
+    account,
+    isLoggedIn
+  };
 };

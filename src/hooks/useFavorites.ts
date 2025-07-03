@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useGetIsLoggedIn } from '@multiversx/sdk-dapp/hooks';
 import { favoritesApi } from '../api/favorites';
 import type { Property, Favorite } from '../types';
 
@@ -6,9 +7,15 @@ export const useFavorites = () => {
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const isLoggedIn = useGetIsLoggedIn();
 
-  // Charger les favoris depuis l'API au démarrage
+  // Charger les favoris depuis l'API uniquement si connecté
   useEffect(() => {
+    if (!isLoggedIn) {
+      setFavorites([]);
+      setIsLoading(false);
+      return;
+    }
     const loadFavorites = async () => {
       try {
         setIsLoading(true);
@@ -25,7 +32,7 @@ export const useFavorites = () => {
     };
 
     loadFavorites();
-  }, []);
+  }, [isLoggedIn]);
 
   // Ajouter aux favoris
   const addToFavorites = async (propertyId: string) => {

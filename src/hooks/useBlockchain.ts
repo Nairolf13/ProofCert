@@ -1,41 +1,35 @@
 import { useState, useCallback } from 'react';
-import { useMultiversX } from '../hooks/useMultiversX';
-import { multiversXService } from '../services/multiversx';
+import { useGetAccountInfo, useGetIsLoggedIn } from '@multiversx/sdk-dapp/hooks';
+import { sendTransactions } from '@multiversx/sdk-dapp/services/transactions/sendTransactions';
 
 export const useBlockchain = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { account, signTransaction, isConnected } = useMultiversX();
+  const { account } = useGetAccountInfo();
+  const isConnected = useGetIsLoggedIn();
 
   // Certifier une preuve sur la blockchain
   const certifyProof = useCallback(async (proofHash: string, metadata: string) => {
-    if (!isConnected || !account) {
+    if (!isConnected || !account?.address) {
       throw new Error('Wallet not connected');
     }
-
     setIsLoading(true);
     setError(null);
-
     try {
-      // Créer la transaction
-      const transaction = await multiversXService.createProofCertificationTransaction(
-        account.address,
-        proofHash,
-        metadata
-      );
-
-      // Signer la transaction
-      const signedTransaction = await signTransaction(transaction);
-
-      // Dans une vraie implémentation, on enverrait la transaction au réseau ici
-      console.log('Signed transaction:', signedTransaction);
-
-      // Simuler un hash de transaction basé sur la signature
-      const mockTxHash = 'tx_' + signedTransaction.hash || Math.random().toString(36).substring(7);
-      
+      // À adapter selon ton smart contract
+      const tx = {
+        value: '0',
+        data: `certifyProof@${proofHash}@${metadata}`,
+        receiver: 'SMART_CONTRACT_ADDRESS', // à remplacer
+        gasLimit: 60000000,
+      };
+      const { sessionId } = await sendTransactions({
+        transactions: [tx],
+        signWithoutSending: false,
+      });
       return {
-        txHash: mockTxHash,
-        explorerUrl: multiversXService.getExplorerTransactionUrl(mockTxHash)
+        txHash: sessionId,
+        explorerUrl: `https://explorer.multiversx.com/transactions/${sessionId}`
       };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Transaction failed';
@@ -44,7 +38,7 @@ export const useBlockchain = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [account, signTransaction, isConnected]);
+  }, [account, isConnected]);
 
   // Effectuer un paiement de location
   const makeRentalPayment = useCallback(async (
@@ -52,36 +46,26 @@ export const useBlockchain = () => {
     amount: string,
     propertyId: string
   ) => {
-    if (!isConnected || !account) {
+    if (!isConnected || !account?.address) {
       throw new Error('Wallet not connected');
     }
-
     setIsLoading(true);
     setError(null);
-
     try {
-      // Vérifier que l'adresse est valide
-      if (!multiversXService.isValidAddress(receiverAddress)) {
-        throw new Error('Invalid receiver address');
-      }
-
-      // Créer la transaction de paiement
-      const transaction = await multiversXService.createRentalPaymentTransaction(
-        account.address,
-        receiverAddress,
-        multiversXService.egldToWei(amount),
-        propertyId
-      );
-
-      // Signer la transaction
-      await signTransaction(transaction);
-
-      // Simuler un hash de transaction
-      const mockTxHash = 'tx_' + Math.random().toString(36).substring(7);
-      
+      // À adapter selon ton smart contract
+      const tx = {
+        value: amount, // en wei
+        data: `rent@${propertyId}`,
+        receiver: receiverAddress,
+        gasLimit: 60000000,
+      };
+      const { sessionId } = await sendTransactions({
+        transactions: [tx],
+        signWithoutSending: false,
+      });
       return {
-        txHash: mockTxHash,
-        explorerUrl: multiversXService.getExplorerTransactionUrl(mockTxHash),
+        txHash: sessionId,
+        explorerUrl: `https://explorer.multiversx.com/transactions/${sessionId}`,
         amount: amount,
         receiver: receiverAddress
       };
@@ -92,16 +76,16 @@ export const useBlockchain = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [account, signTransaction, isConnected]);
+  }, [account, isConnected]);
 
   // Vérifier le statut d'une transaction
   const verifyTransaction = useCallback(async (txHash: string) => {
     setIsLoading(true);
     setError(null);
-
     try {
-      const isValid = await multiversXService.verifyTransaction(txHash);
-      return isValid;
+      const res = await fetch(`https://api.multiversx.com/transactions/${txHash}`);
+      const data = await res.json();
+      return data.status === 'success';
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Verification failed';
       setError(errorMessage);
@@ -113,13 +97,13 @@ export const useBlockchain = () => {
 
   // Obtenir le solde du compte connecté
   const getBalance = useCallback(async () => {
-    if (!account) {
+    if (!account?.address) {
       return '0';
     }
-
     try {
-      const balance = await multiversXService.getAccountBalance(account.address);
-      return multiversXService.formatEGLD(balance);
+      const res = await fetch(`https://api.multiversx.com/accounts/${account.address}`);
+      const data = await res.json();
+      return (parseInt(data.balance, 10) / 1e18).toFixed(4); // EGLD
     } catch (err) {
       console.error('Error fetching balance:', err);
       return '0';
@@ -129,29 +113,25 @@ export const useBlockchain = () => {
   // Calculer les frais estimés pour une transaction
   const estimateTransactionFees = useCallback((gasLimit: number) => {
     const gasPrice = 1000000000; // Prix du gas par défaut
-    const feeInWei = multiversXService.calculateGasFee(gasLimit, gasPrice);
-    return multiversXService.formatEGLD(feeInWei, 6);
+    const feeInWei = gasLimit * gasPrice;
+    return (feeInWei / 1e18).toFixed(6); // EGLD
   }, []);
 
   return {
-    // État
     isLoading,
     error,
     isConnected,
     account,
-
-    // Actions
     certifyProof,
     makeRentalPayment,
     verifyTransaction,
     getBalance,
     estimateTransactionFees,
-
-    // Utilitaires
-    formatEGLD: multiversXService.formatEGLD,
-    egldToWei: multiversXService.egldToWei,
-    weiToEGLD: multiversXService.weiToEGLD,
-    isValidAddress: multiversXService.isValidAddress,
-    getExplorerUrl: multiversXService.getExplorerTransactionUrl,
+    // Utilitaires simples
+    formatEGLD: (wei: string | number, decimals = 4) => (Number(wei) / 1e18).toFixed(decimals),
+    egldToWei: (egld: string | number) => (Number(egld) * 1e18).toString(),
+    weiToEGLD: (wei: string | number, decimals = 4) => (Number(wei) / 1e18).toFixed(decimals),
+    isValidAddress: (address: string) => /^erd1[0-9a-z]{58}$/.test(address),
+    getExplorerUrl: (txHash: string) => `https://explorer.multiversx.com/transactions/${txHash}`,
   };
 };
