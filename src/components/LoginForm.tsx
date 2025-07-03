@@ -1,53 +1,42 @@
-import React, { useState } from 'react';
-import { useAuth } from '../hooks/useAuth';
-import { Button } from './Button';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useMultiversXAuth } from '../hooks/useMultiversXAuth';
 
 interface LoginFormProps {
   onSuccess?: () => void;
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
-  const { login } = useAuth();
-  const [emailOrUsername, setEmailOrUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+  const { isLoggedIn, isLoading } = useMultiversXAuth();
+  const [hasRedirected, setHasRedirected] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-    try {
-      await login({ emailOrUsername, password });
-      if (onSuccess) onSuccess();
-    } catch (err) {
-      const errorMsg = (err instanceof Error && err.message) ? err.message : 'Invalid credentials';
-      setError(errorMsg);
-    } finally {
-      setIsLoading(false);
+  useEffect(() => {
+    // Éviter les redirections multiples
+    if (hasRedirected) return;
+    
+    if (isLoggedIn) {
+      console.log('User is already logged in, calling onSuccess');
+      onSuccess?.();
+      setHasRedirected(true);
+      return;
     }
-  };
+    
+    // Ne rediriger que si pas en cours de chargement et pas encore redirigé
+    if (!isLoading && !hasRedirected) {
+      console.log('Redirecting to unlock page');
+      setHasRedirected(true);
+      navigate('/unlock');
+    }
+  }, [isLoggedIn, isLoading, navigate, onSuccess, hasRedirected]);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {error && <div className="text-red-600 text-sm">{error}</div>}
-      <input
-        type="text"
-        placeholder="Email or Username"
-        value={emailOrUsername}
-        onChange={e => setEmailOrUsername(e.target.value)}
-        className="w-full border rounded px-3 py-2"
-        required
-      />
-      <input
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={e => setPassword(e.target.value)}
-        className="w-full border rounded px-3 py-2"
-        required
-      />
-      <Button type="submit" isLoading={isLoading} className="w-full">Login</Button>
-    </form>
+    <div className="flex flex-col items-center justify-center p-8 text-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+      <p className="text-secondary">
+        {isLoggedIn ? 'Authentification réussie...' : 'Redirection vers l\'authentification MultiversX...'}
+      </p>
+    </div>
   );
 };
+

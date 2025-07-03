@@ -285,7 +285,7 @@ router.delete('/reviews/:id', authenticateToken, async (req, res) => {
 });
 
 // Route publique pour récupérer TOUTES les propriétés disponibles (pour la recherche/découverte)
-router.get('/properties/public/all', authenticateToken, async (req, res) => {
+router.get('/properties/public/all', async (req, res) => {
   try {
     // Récupère toutes les propriétés disponibles, peu importe le rôle de l'utilisateur
     const properties = await prisma.property.findMany({ 

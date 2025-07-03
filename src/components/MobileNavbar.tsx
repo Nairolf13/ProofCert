@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useMultiversXAuth } from '../hooks/useMultiversXAuth';
 import { Button } from './Button';
 import {
   HomeIcon,
@@ -25,14 +25,14 @@ const navigation = [
 ];
 
 export const MobileNavbar: React.FC = () => {
-  const { user, isAuthenticated, disconnect } = useAuth();
+  const { user, isLoggedIn, logout } = useMultiversXAuth();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   const isActive = (path: string) => location.pathname.startsWith(path);
   
-  const disconnectAndRedirect = () => {
-    disconnect();
+  const disconnectAndRedirect = async () => {
+    await logout();
     window.location.href = '/';
     setIsMenuOpen(false);
   };
@@ -113,7 +113,7 @@ export const MobileNavbar: React.FC = () => {
 
           {/* Footer du menu compact */}
           <div className="p-2 border-t border-gray-200">
-            {isAuthenticated && user ? (
+            {isLoggedIn && user ? (
               <div className="space-y-2">
                 {user.walletAddress && (
                   <div className="text-xs text-secondary font-medium bg-gray-100 rounded-lg px-2 py-1 text-center">

@@ -1,13 +1,13 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useMultiversXAuth } from '../hooks/useMultiversXAuth';
 
 export const PrivateRoute: React.FC = () => {
-  const { isAuthenticated, isAuthLoading } = useAuth();
+  const { isLoggedIn, isLoading } = useMultiversXAuth();
 
-  if (isAuthLoading) {
+  if (isLoading) {
     return <div className="flex justify-center items-center h-screen">Chargement...</div>;
   }
 
-  return isAuthenticated ? <Outlet /> : <Navigate to="/" replace />;
+  return isLoggedIn ? <Outlet /> : <Navigate to="/" replace />;
 };

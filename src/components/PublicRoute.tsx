@@ -1,16 +1,16 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useMultiversXAuth } from '../hooks/useMultiversXAuth';
 
 interface PublicRouteProps {
   children: React.ReactNode;
 }
 
 export const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isLoggedIn } = useMultiversXAuth();
 
   // Si l'utilisateur est connecté, rediriger vers le dashboard
-  if (isAuthenticated) {
+  if (isLoggedIn) {
     return <Navigate to="/dashboard" replace />;
   }
 

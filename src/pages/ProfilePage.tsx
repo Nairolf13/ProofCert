@@ -1,18 +1,30 @@
 import React, { useState } from 'react';
-import { useAuth } from '../hooks/useAuth';
 import { ImmersiveLayout } from '../components/ImmersiveLayout';
 import { Button } from '../components/Button';
-import { UserIcon, WalletIcon, CalendarIcon, EnvelopeIcon, ArrowRightOnRectangleIcon, CameraIcon } from '@heroicons/react/24/outline';
-import { Link } from 'react-router-dom';
-import { userApi } from '../api/user';
+import { UserIcon, WalletIcon, CalendarIcon, ArrowRightOnRectangleIcon, CameraIcon } from '@heroicons/react/24/outline';
+import { Link, useNavigate } from 'react-router-dom';
+import { useMultiversXAuth } from '../hooks/useMultiversXAuth';
 
 const ProfilePage: React.FC = () => {
-  const { user, isAuthenticated, disconnect, updateUser } = useAuth();
+  const { account, isLoggedIn, logout } = useMultiversXAuth();
+  const navigate = useNavigate();
   const [isUploading, setIsUploading] = useState(false);
+
+  // Redirect to unlock if not authenticated
+  React.useEffect(() => {
+    if (!isLoggedIn) {
+      navigate('/unlock');
+    }
+  }, [isLoggedIn, navigate]);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
+  };
 
   const handleProfileImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !user) return;
+    if (!file || !account) return;
 
     // Validation du fichier
     const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
@@ -28,14 +40,14 @@ const ProfilePage: React.FC = () => {
 
     setIsUploading(true);
     try {
-      // Convertir en base64 pour l'envoi
+      // Convert to base64 for upload
       const base64 = await fileToBase64(file);
       
-      // Mettre à jour le profil via l'API
-      const updatedUser = await userApi.updateProfileImage(base64);
-
-      // Mettre à jour le contexte utilisateur
-      updateUser(updatedUser);
+      // In a real implementation, upload to backend/IPFS and associate with wallet address
+      console.log('Profile image would be uploaded for address:', account?.address, 'size:', base64.length);
+      
+      // TODO: Implement actual profile image upload
+      // await profileApi.updateProfileImage(account.address, base64);
     } catch (error) {
       console.error('Erreur lors de la mise à jour de la photo de profil:', error);
       alert('Erreur lors de la mise à jour de la photo de profil');
@@ -53,14 +65,14 @@ const ProfilePage: React.FC = () => {
     });
   };
 
-  if (!isAuthenticated || !user) {
+  if (!isLoggedIn || !account) {
     return (
       <ImmersiveLayout>
         <div className="flex flex-col items-center justify-center min-h-[60vh]">
           <UserIcon className="w-16 h-16 text-secondary mb-4" />
           <h2 className="text-3xl font-extrabold mb-2 text-primary">Non authentifié</h2>
           <p className="text-lg text-secondary mb-6">Connectez-vous pour accéder à votre profil magazine.</p>
-          <Link to="/auth">
+          <Link to="/unlock">
             <Button className="btn-primary px-8 py-3 text-lg font-bold rounded-2xl shadow-xl hover:scale-105 transition">Connexion</Button>
           </Link>
         </div>
@@ -75,11 +87,8 @@ const ProfilePage: React.FC = () => {
         <div className="relative group mb-2">
           <div className="absolute -inset-2 rounded-full blur-2xl bg-primary-light opacity-30 group-hover:opacity-50 transition" />
           <div className="relative w-36 h-36 rounded-full overflow-hidden border-8 border-white shadow-2xl flex items-center justify-center bg-surface">
-            {user.profileImage ? (
-              <img src={user.profileImage} alt="Profile" className="w-full h-full object-cover" loading="lazy" />
-            ) : (
-              <UserIcon className="w-20 h-20 text-secondary" />
-            )}
+            {/* TODO: Profile image from backend/IPFS based on wallet address */}
+            <UserIcon className="w-20 h-20 text-secondary" />
             
             {/* Overlay pour changer la photo */}
             <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
@@ -106,21 +115,23 @@ const ProfilePage: React.FC = () => {
         </div>
         {/* Infos utilisateur */}
         <div className="flex flex-col items-center gap-2 w-full">
-          <span className="text-3xl font-extrabold text-primary mb-0.5 truncate max-w-xs drop-shadow">{user.username || user.email}</span>
-          <span className="text-secondary text-lg truncate max-w-xs mb-2">{user.email}</span>
+          <span className="text-3xl font-extrabold text-primary mb-0.5 truncate max-w-xs drop-shadow">
+            {account.address.slice(0, 6)}...{account.address.slice(-4)}
+          </span>
+          <span className="text-secondary text-lg truncate max-w-xs mb-2">MultiversX Wallet</span>
           <div className="flex flex-wrap gap-3 justify-center mt-2">
             <span className="inline-flex items-center gap-1 px-4 py-1 rounded-full bg-accent-light text-accent text-base font-medium shadow border border-accent">
               <WalletIcon className="w-5 h-5" />
-              {user.walletAddress ? user.walletAddress : 'Wallet non connecté'}
+              {account.address}
             </span>
             <span className="inline-flex items-center gap-1 px-4 py-1 rounded-full bg-primary-light text-primary text-base font-medium shadow border border-primary">
               <CalendarIcon className="w-5 h-5" />
-              Membre depuis {new Date(user.createdAt).toLocaleDateString()}
+              Connecté aujourd'hui
             </span>
           </div>
           <span className="inline-flex items-center gap-1 px-4 py-1 rounded-full bg-surface-secondary text-secondary text-xs font-mono mt-2 border border-light">
-            <EnvelopeIcon className="w-4 h-4" />
-            ID: {user.id}
+            <WalletIcon className="w-4 h-4" />
+            Balance: {account.balance ? `${account.balance} EGLD` : 'Loading...'}
           </span>
         </div>
         {/* Actions */}
@@ -140,7 +151,7 @@ const ProfilePage: React.FC = () => {
           </Link>
           <Button
             className="btn-primary w-full sm:w-auto flex-1 text-lg font-bold shadow-xl focus:ring-2 focus:ring-primary"
-            onClick={disconnect}
+            onClick={handleLogout}
             leftIcon={<ArrowRightOnRectangleIcon className="w-6 h-6" />}
           >
             Se déconnecter

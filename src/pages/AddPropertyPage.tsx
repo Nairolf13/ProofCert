@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { propertyApi } from '../api/property';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
-import { useAuth } from '../hooks/useAuth';
 import { AutocompleteInput } from '../components/AutocompleteInput';
 import { ISO_COUNTRIES, fetchCountries, fetchRegions, fetchCities } from '../utils/geodata';
 
@@ -43,7 +42,8 @@ export const AddPropertyPage: React.FC = () => {
   const [regionOptions, setRegionOptions] = useState<string[]>([]);
   const [cityOptions, setCityOptions] = useState<string[]>([]);
   const navigate = useNavigate();
-  const { refreshUser } = useAuth();
+  // const { refreshUser } = useAuth(); // TODO: Replace with MultiversX equivalent
+  const refreshUser = async () => { console.log('refreshUser called - MultiversX integration needed'); };
 
   // Gestion de l’upload et preview des images
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);

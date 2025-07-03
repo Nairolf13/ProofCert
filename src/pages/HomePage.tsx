@@ -1,7 +1,7 @@
 import React from 'react';
 import { ImmersiveLayout } from '../components/ImmersiveLayout';
 import { Button } from '../components/Button';
-import { useAuth } from '../hooks/useAuth';
+import { useMultiversXAuth } from '../hooks/useMultiversXAuth';
 import { Link } from 'react-router-dom';
 import { 
   ShieldCheckIcon, 
@@ -20,7 +20,9 @@ import {
 } from '@heroicons/react/24/outline';
 
 export const HomePage: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+  const { isLoggedIn } = useMultiversXAuth();
+
+  // Redirect to dashboard if authenticated
   
   return (
     <ImmersiveLayout>
@@ -45,7 +47,7 @@ export const HomePage: React.FC = () => {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-10">
-              {isAuthenticated ? (
+              {isLoggedIn ? (
                 <>
                   <Link 
                     to="/dashboard" 
@@ -384,7 +386,7 @@ export const HomePage: React.FC = () => {
         </section>
 
         {/* CTA Section */}
-        {!isAuthenticated && (
+        {!isLoggedIn && (
           <section className="py-20 px-4">
             <div className="bg-gradient-to-r from-blue-600 via-indigo-700 to-purple-700 rounded-3xl p-12 text-center shadow-2xl">
               <h2 className="text-4xl md:text-5xl font-bold mb-6 text-white">

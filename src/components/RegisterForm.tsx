@@ -1,75 +1,29 @@
-import React, { useState } from 'react';
-import { useAuth } from '../hooks/useAuth';
-import { Button } from './Button';
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useMultiversXAuth } from '../hooks/useMultiversXAuth';
 
 interface RegisterFormProps {
   onSuccess?: () => void;
 }
 
 export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
-  const { register } = useAuth();
-  const [email, setEmail] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+  const { isLoggedIn } = useMultiversXAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      setIsLoading(false);
+  useEffect(() => {
+    if (isLoggedIn) {
+      onSuccess?.();
       return;
     }
-    try {
-      await register({ email, username, password, confirmPassword });
-      onSuccess?.();
-    } catch {
-      setError('Registration failed');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    
+    // Redirect to unlock page for wallet authentication
+    navigate('/unlock');
+  }, [isLoggedIn, navigate, onSuccess]);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {error && <div className="text-red-600 text-sm">{error}</div>}
-      <input
-        type="email"
-        placeholder="Email"
-        value={email}
-        onChange={e => setEmail(e.target.value)}
-        className="w-full border rounded px-3 py-2"
-        required
-      />
-      <input
-        type="text"
-        placeholder="Username"
-        value={username}
-        onChange={e => setUsername(e.target.value)}
-        className="w-full border rounded px-3 py-2"
-        required
-      />
-      <input
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={e => setPassword(e.target.value)}
-        className="w-full border rounded px-3 py-2"
-        required
-      />
-      <input
-        type="password"
-        placeholder="Confirm Password"
-        value={confirmPassword}
-        onChange={e => setConfirmPassword(e.target.value)}
-        className="w-full border rounded px-3 py-2"
-        required
-      />
-      <Button type="submit" isLoading={isLoading} className="w-full">Register</Button>
-    </form>
+    <div className="flex flex-col items-center justify-center p-8 text-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+      <p className="text-secondary">Redirecting to MultiversX wallet authentication...</p>
+    </div>
   );
 };

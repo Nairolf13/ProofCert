@@ -1,35 +1,19 @@
 import React, { createContext, useReducer, useEffect, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import type { MultiversXAccount, MultiversXTransaction } from '../config/multiversx';
-
-// Types pour le wallet provider (définis localement pour éviter les conflits d'import)
-interface WalletProvider {
-  id: string;
-  name: string;
-  icon?: string;
-  connect: () => Promise<MultiversXAccount>;
-  disconnect: () => Promise<void>;
-  isConnected: () => boolean;
-  signTransaction: (transaction: MultiversXTransaction) => Promise<MultiversXTransaction>;
-}
-
-// Type pour les providers disponibles
-type ProvidersMap = {
-  'web-wallet': WalletProvider;
-  'extension': WalletProvider;
-};
+import { createRealWalletProviders, type RealWalletProvider, type RealProvidersMap } from '../config/realWalletProviders';
 
 // Types pour le contexte MultiversX
 interface MultiversXState {
   isConnected: boolean;
   account: MultiversXAccount | null;
-  provider: WalletProvider | null;
+  provider: RealWalletProvider | null;
   isLoading: boolean;
   error: string | null;
 }
 
 interface MultiversXContextType extends MultiversXState {
-  connect: (providerId: keyof ProvidersMap) => Promise<void>;
+  connect: (providerId: keyof RealProvidersMap) => Promise<void>;
   disconnect: () => Promise<void>;
   signTransaction: (transaction: MultiversXTransaction) => Promise<MultiversXTransaction>;
 }
@@ -48,7 +32,7 @@ type MultiversXAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'SET_ACCOUNT'; payload: MultiversXAccount | null }
-  | { type: 'SET_PROVIDER'; payload: WalletProvider | null }
+  | { type: 'SET_PROVIDER'; payload: RealWalletProvider | null }
   | { type: 'SET_CONNECTED'; payload: boolean }
   | { type: 'RESET' };
 
@@ -80,62 +64,17 @@ interface MultiversXProviderProps {
   children: ReactNode;
 }
 
-// Mock des providers de wallet pour l'instant
-const mockWebWalletProvider: WalletProvider = {
-  id: 'web-wallet',
-  name: 'MultiversX Web Wallet',
-  connect: async () => {
-    // Simulation d'une connexion
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return {
-      address: 'erd1...' + Math.random().toString(36).substring(7),
-      balance: '1000000000000000000', // 1 EGLD
-      nonce: 0
-    };
-  },
-  disconnect: async () => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-  },
-  isConnected: () => false,
-  signTransaction: async (transaction) => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return { ...transaction, signature: 'mock_signature' };
-  }
-};
-
-const mockExtensionProvider: WalletProvider = {
-  id: 'extension',
-  name: 'MultiversX DeFi Wallet',
-  connect: async () => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return {
-      address: 'erd1...' + Math.random().toString(36).substring(7),
-      balance: '2000000000000000000', // 2 EGLD
-      nonce: 0
-    };
-  },
-  disconnect: async () => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-  },
-  isConnected: () => false,
-  signTransaction: async (transaction) => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return { ...transaction, signature: 'mock_signature_extension' };
-  }
-};
-
 // Provider Component
 const MultiversXProvider: React.FC<MultiversXProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(multiversXReducer, initialState);
 
-  // Providers disponibles (mock pour l'instant) - mémorisés pour éviter les recréations
-  const providers = useMemo<ProvidersMap>(() => ({
-    'web-wallet': mockWebWalletProvider,
-    'extension': mockExtensionProvider,
-  }), []);
+  // Vrais providers MultiversX - mémorisés pour éviter les recréations
+  const providers = useMemo<RealProvidersMap>(() => {
+    return createRealWalletProviders() as RealProvidersMap;
+  }, []);
 
   // Fonction de connexion
-  const connect = async (providerId: keyof ProvidersMap) => {
+  const connect = async (providerId: keyof RealProvidersMap) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
@@ -145,7 +84,9 @@ const MultiversXProvider: React.FC<MultiversXProviderProps> = ({ children }) => 
         throw new Error(`Provider ${providerId} not found`);
       }
 
+      console.log(`Attempting to connect with ${provider.name}...`);
       const account = await provider.connect();
+      console.log('Connected successfully:', account);
       
       dispatch({ type: 'SET_PROVIDER', payload: provider });
       dispatch({ type: 'SET_ACCOUNT', payload: account });
@@ -156,6 +97,7 @@ const MultiversXProvider: React.FC<MultiversXProviderProps> = ({ children }) => 
       localStorage.setItem('multiversx_account', JSON.stringify(account));
 
     } catch (error) {
+      console.error('Connection error:', error);
       dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Connection failed' });
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -199,13 +141,19 @@ const MultiversXProvider: React.FC<MultiversXProviderProps> = ({ children }) => 
 
       if (savedProviderId && savedAccount) {
         try {
-          const provider = providers[savedProviderId as keyof ProvidersMap];
+          const provider = providers[savedProviderId as keyof RealProvidersMap];
           const account = JSON.parse(savedAccount);
 
           if (provider && provider.isConnected()) {
+            console.log('Restoring session for:', provider.name);
             dispatch({ type: 'SET_PROVIDER', payload: provider });
             dispatch({ type: 'SET_ACCOUNT', payload: account });
             dispatch({ type: 'SET_CONNECTED', payload: true });
+          } else {
+            // Si le provider n'est plus connecté, nettoyer le cache
+            console.log('Provider no longer connected, clearing cache');
+            localStorage.removeItem('multiversx_provider');
+            localStorage.removeItem('multiversx_account');
           }
         } catch (error) {
           console.warn('Failed to restore MultiversX session:', error);

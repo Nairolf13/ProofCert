@@ -4,7 +4,8 @@ import { propertyApi } from '../api/property';
 import { rentalApi } from '../api/rental';
 import type { Property, Review, Rental } from '../types';
 import { Button } from '../components/Button';
-import { useAuth } from '../hooks/useAuth';
+import { useMultiversXAuth } from '../hooks/useMultiversXAuth';
+
 import { useFavorites } from '../hooks/useFavorites';
 import { PropertyGallery } from '../components/PropertyGallery';
 import { PropertyHeader } from '../components/PropertyHeader';
@@ -75,7 +76,7 @@ export const PropertyDetailPage: React.FC = () => {
   const [property, setProperty] = useState<Property | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user, refreshUser } = useAuth();
+  const { user } = useMultiversXAuth();
   const { toggleFavorite, isFavorite } = useFavorites();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<EditPropertyData>({
@@ -207,7 +208,7 @@ export const PropertyDetailPage: React.FC = () => {
   if (error) return <div className="min-h-screen w-full bg-surface-secondary flex justify-center items-center"><div className="text-error text-center font-bold text-2xl">{error}</div></div>;
   if (!property) return <div className="min-h-screen w-full bg-surface-secondary flex justify-center items-center"><div className="text-center text-secondary text-2xl">Bien introuvable</div></div>;
 
-  const isOwner = user && user.id === property.ownerId;
+  const isOwner = user?.address === property.ownerId;
   // Correction : définir propertyRentals à [] si rentals n'est pas défini
   const propertyRentals: Rental[] = property && Array.isArray(property.rentals) ? property.rentals : [];
 
@@ -241,19 +242,23 @@ export const PropertyDetailPage: React.FC = () => {
     }
     setIsBooking(true);
     try {
-      const currentUser = user;
-      if (user.role !== 'OWNER') {
-        await propertyApi.promoteToOwner();
-        if (typeof refreshUser === 'function') {
-          await refreshUser();
-        }
+      // Avec MultiversX, on utilise l'adresse du wallet comme identifiant
+      if (user?.address) {
+        await rentalApi.create({ 
+          propertyId: property.id, 
+          tenantId: user.address, 
+          startDate, 
+          endDate 
+        });
+        setCalendarMessage("Réservation effectuée avec succès !");
+        setStartDate(''); 
+        setEndDate('');
+        setTimeout(() => setCalendarMessage(null), 3000);
+        const updatedProperty = await propertyApi.getById(property.id);
+        setProperty(updatedProperty);
+      } else {
+        setCalendarMessage("Erreur: adresse wallet non trouvée.");
       }
-      await rentalApi.create({ propertyId: property.id, tenantId: currentUser.id, startDate, endDate });
-      setCalendarMessage("Réservation effectuée avec succès !");
-      setStartDate(''); setEndDate('');
-      setTimeout(() => setCalendarMessage(null), 3000);
-      const updatedProperty = await propertyApi.getById(property.id);
-      setProperty(updatedProperty);
     } catch (err: unknown) {
       let status: number | undefined;
       if (typeof err === 'object' && err !== null && 'response' in err) {
@@ -406,7 +411,14 @@ export const PropertyDetailPage: React.FC = () => {
 
           <PropertyReviewsSection
             reviews={reviews}
-            user={user}
+            user={user ? {
+              id: user.address,
+              email: user.username || user.address,
+              username: user.username || '',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              walletAddress: user.address
+            } : null}
             onDeleteReview={handleDeleteReview}
             AddReviewForm={user && (
               <AddReviewForm propertyId={property.id} onReviewAdded={async () => {

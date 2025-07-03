@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useRentals } from '../hooks/useRentals';
-import { useAuth } from '../hooks/useAuth';
+import { useMultiversXAuth } from '../hooks/useMultiversXAuth';
 import type { Rental } from '../types';
 import { 
   CalendarIcon, 
@@ -14,13 +14,13 @@ import { Link } from 'react-router-dom';
 
 const MyReservationsPage: React.FC = () => {
   const { rentals, isLoading, error } = useRentals();
-  const { user } = useAuth();
+  const { user } = useMultiversXAuth();
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'past' | 'upcoming'>('all');
 
   // Filtrer les réservations de l'utilisateur connecté
   const userRentals = useMemo(() => {
     if (!user || !rentals) return [];
-    return rentals.filter(rental => rental.tenantId === user.id);
+    return rentals.filter(rental => rental.tenantId === user.address);
   }, [rentals, user]);
 
   // Classer les réservations par statut

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useMultiversXAuth } from '../hooks/useMultiversXAuth';
 import { Button } from './Button';
 import { WalletInfo } from './WalletInfo';
 import {
@@ -23,12 +23,12 @@ const navigation = [
   { name: 'Profil', href: '/profile', icon: UserIcon },
 ];
 
-export const Navbar: React.FC = () => {
-  const { user, isAuthenticated, disconnect } = useAuth();
+export const Navbar: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWalletModal }) => {
+  const { user, isLoggedIn, logout } = useMultiversXAuth();
   const location = useLocation();
   const isActive = (path: string) => location.pathname.startsWith(path);
-  const disconnectAndRedirect = () => {
-    disconnect();
+  const disconnectAndRedirect = async () => {
+    await logout();
     window.location.href = '/';
   };
 
@@ -62,9 +62,8 @@ export const Navbar: React.FC = () => {
       </nav>
       <div className="mt-auto flex flex-col gap-3 w-full">
         {/* Informations du wallet */}
-        <WalletInfo />
-        
-        {isAuthenticated && user ? (
+        <WalletInfo onOpenWalletModal={onOpenWalletModal} />
+        {isLoggedIn && user ? (
           <>
             <span className="text-xs text-secondary font-medium truncate max-w-[120px]">
               {user.walletAddress ? `${user.walletAddress.slice(0, 6)}...${user.walletAddress.slice(-4)}` : ''}
@@ -80,9 +79,9 @@ export const Navbar: React.FC = () => {
             </Button>
           </>
         ) : (
-          <Link to="/auth" className="w-full">
-            <Button size="sm" className="w-full justify-start">Connexion</Button>
-          </Link>
+          <Button size="sm" className="w-full justify-start" onClick={onOpenWalletModal}>
+            Connecter Wallet
+          </Button>
         )}
       </div>
     </aside>
