@@ -1,0 +1,100 @@
+.wallet-modal-btn > button,
+.wallet-modal-btn > a {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  height: 48px !important;
+  min-height: 48px !important;
+  border-radius: 0.75rem !important;
+  font-size: 1.125rem !important;
+  font-weight: 600 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 1.5rem !important;
+  box-shadow: 0 1px 4px 0 rgb(0 0 0 / 0.04);
+}
+
+.wallet-modal-btn {
+  width: 100%;
+  max-width: 20rem;
+  margin: 0 auto;
+}
+
+.dapp-core-component__main__btn,
+.dapp-core-component__main__btn-primary,
+.dapp-default-login-button,
+.dapp-ledger-login-button,
+.dapp-wallet-connect-login-button,
+.dapp-core-component__extensionLoginButton-styles__no-extension-button-wrapper {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  border-radius: 0.75rem !important;
+  font-size: 1.125rem !important;
+  font-weight: 600 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 1px 4px 0 rgb(0 0 0 / 0.04);
+}
+
+.dapp-core-component__main__btn > span,
+.dapp-default-login-button > span {
+  width: 100%;
+  text-align: center;
+}
+
+.dapp-core-component__walletConnectModal__modal,
+.dapp-core-modal,
+.dapp-core-component__modal {
+  min-height: 700px !important;
+  height: 95vh !important;
+  max-height: 99vh !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.dapp-core-component__walletConnectModal__modal {
+  padding-top: 2rem !important;
+  padding-bottom: 2rem !important;
+}
+
+.dapp-core-component__walletConnectLoginContainerStyles__xPortal-login-container {
+  min-height: 75vh !important;
+  height: 75vh !important;
+  max-height: 75vh !important;
+  min-width: 0 !important;
+  width: 100%;
+  max-width: 450px !important;
+  margin: 0 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: white !important;
+  border-radius: 1.5rem !important;
+  box-shadow: 0 8px 32px 0 rgb(0 0 0 / 0.12) !important;
+  padding: 0 !important;
+}
+
+.dapp-core-component__dappModalStyles__dappModalContent {
+  min-height: 75vh !important;
+  height: 75vh !important;
+  max-height: 75vh !important;
+  min-width: 0 !important;
+  width: 100%;
+  max-width: 420px !important;
+  margin: 0 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: transparent !important;
+  border-radius: 1.5rem !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}

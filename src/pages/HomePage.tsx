@@ -18,16 +18,17 @@ import {
   HomeIcon,
   
 } from '@heroicons/react/24/outline';
+import { ModalConnectWallet } from '../components/ModalConnectWallet';
 
 export const HomePage: React.FC = () => {
   const { isLoggedIn } = useMultiversXAuth();
+  const [showConnectModal, setShowConnectModal] = React.useState(false);
 
   // Redirect to dashboard if authenticated
   
   return (
     <ImmersiveLayout>
       <div className="w-full max-w-7xl mx-auto">
-        
         {/* Hero Section */}
         <section className="relative min-h-screen flex items-center justify-center py-20 px-4">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50 -z-10 rounded-3xl"></div>
@@ -65,19 +66,20 @@ export const HomePage: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <Link 
-                    to="/auth?mode=register" 
-                    className="group bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:text-white px-8 py-4 rounded-2xl text-lg font-semibold hover:shadow-2xl transform hover:scale-105 transition-all duration-300 flex items-center gap-2 no-underline"
+                  <Link
+                    to="/auth?mode=register"
+                    className="group bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:text-white px-8 py-4 rounded-2xl text-lg font-semibold hover:shadow-2xl transform hover:scale-105 transition-all duration-300 flex items-center gap-2"
                   >
                     Commencer gratuitement
                     <ArrowRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </Link>
-                  <Link 
-                    to="/auth?mode=login" 
+                  <button
+                    type="button"
                     className="border-2 border-blue-600 text-blue-600 px-8 py-4 rounded-2xl text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 no-underline"
+                    onClick={() => setShowConnectModal(true)}
                   >
                     Se connecter
-                  </Link>
+                  </button>
                 </>
               )}
             </div>
@@ -406,6 +408,7 @@ export const HomePage: React.FC = () => {
             </div>
           </section>
         )}
+        <ModalConnectWallet isOpen={showConnectModal} onClose={() => setShowConnectModal(false)} />
       </div>
     </ImmersiveLayout>
   );
