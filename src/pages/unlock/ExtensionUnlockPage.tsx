@@ -1,13 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ExtensionLoginButton } from '../../lib/sdkDapp/realistic-components';
+// Assurez-vous que ExtensionLoginButton est bien exporté du SDK MultiversX
+import { ExtensionLoginButton } from '../../lib/multiversx/index';
+// const ExtensionLoginButton = undefined; // Remplacez par l'import réel si disponible
 
 export const ExtensionUnlockPage: React.FC = () => {
   const navigate = useNavigate();
-
-  const commonProps = {
-    callbackRoute: '/dashboard',
-  };
+  const commonProps = { callbackRoute: '/dashboard' };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -22,11 +21,20 @@ export const ExtensionUnlockPage: React.FC = () => {
         </div>
 
         <div className="space-y-4">
-          <ExtensionLoginButton
-            loginButtonText="Connecter DeFi Wallet"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
-            {...commonProps}
-          />
+          {ExtensionLoginButton ? (
+            <ExtensionLoginButton
+              loginButtonText="Connecter DeFi Wallet"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
+              {...commonProps}
+            />
+          ) : (
+            <div className="text-red-500 text-center font-medium rounded bg-red-50 p-3">
+              Bouton d'extension non disponible. <br />
+              <span className="text-xs text-gray-500">
+                Vérifiez l'intégration du SDK MultiversX côté front.
+              </span>
+            </div>
+          )}
 
           <button
             onClick={() => navigate('/')}

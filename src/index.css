@@ -526,3 +526,8 @@ pre {
 /* ================================
    STYLES DE BASE (suite)
    ================================ */
+
+/* Garantit que la modal SDK MultiversX QR code est toujours au-dessus de tout */
+#dapp-modal {
+  z-index: 20000 !important;
+}

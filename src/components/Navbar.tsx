@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useMultiversXAuth } from '../hooks/useMultiversXAuth';
+import { useAuthContext } from '../hooks/AuthContext';
 import { Button } from './Button';
 import { WalletInfo } from './WalletInfo';
 import {
@@ -24,13 +25,37 @@ const navigation = [
 ];
 
 export const Navbar: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWalletModal }) => {
-  const { user, isLoggedIn, logout } = useMultiversXAuth();
+  const { user: web3User, isLoggedIn: isWeb3LoggedIn, logout: web3Logout } = useMultiversXAuth();
+  const { user: classicUser, isAuthenticated: isClassicLoggedIn, disconnect: classicLogout } = useAuthContext();
   const location = useLocation();
   const isActive = (path: string) => location.pathname.startsWith(path);
-  const disconnectAndRedirect = async () => {
-    await logout();
+
+  // Déconnexion selon le mode d'auth
+  const handleLogout = async () => {
+    if (isWeb3LoggedIn) {
+      await web3Logout();
+    } else if (isClassicLoggedIn) {
+      await classicLogout();
+    }
     window.location.href = '/';
   };
+
+  // Affichage info utilisateur
+  let userInfo = null;
+  if (isClassicLoggedIn && classicUser) {
+    userInfo = (
+      <span className="text-xs text-secondary font-medium truncate max-w-[160px]" title={classicUser.email}>
+        {classicUser.email}
+      </span>
+    );
+  } else if (isWeb3LoggedIn && web3User) {
+    userInfo = (
+      <span className="text-xs text-secondary font-medium truncate max-w-[160px]" title={web3User.walletAddress}
+      >
+        {web3User.walletAddress ? `${web3User.walletAddress.slice(0, 6)}...${web3User.walletAddress.slice(-4)}` : ''}
+      </span>
+    );
+  }
 
   return (
     <aside
@@ -61,24 +86,24 @@ export const Navbar: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWall
         })}
       </nav>
       <div className="mt-auto flex flex-col gap-3 w-full">
-        {/* Informations du wallet */}
+        {/* Affichage wallet MultiversX (bouton modal) */}
         <WalletInfo onOpenWalletModal={onOpenWalletModal} />
-        {isLoggedIn && user ? (
-          <>
-            <span className="text-xs text-secondary font-medium truncate max-w-[120px]">
-              {user.walletAddress ? `${user.walletAddress.slice(0, 6)}...${user.walletAddress.slice(-4)}` : ''}
-            </span>
+        {/* Affichage info utilisateur + bouton déconnexion/connexion */}
+        {userInfo && (
+          <div className="flex items-center gap-2">
+            {userInfo}
             <Button
               variant="ghost"
               size="sm"
-              onClick={disconnectAndRedirect}
+              onClick={handleLogout}
               leftIcon={<ArrowRightOnRectangleIcon className="w-5 h-5" />}
               className="w-full justify-start"
             >
               Déconnexion
             </Button>
-          </>
-        ) : (
+          </div>
+        )}
+        {!isClassicLoggedIn && !isWeb3LoggedIn && (
           <Button size="sm" className="w-full justify-start" onClick={onOpenWalletModal}>
             Connecter Wallet
           </Button>

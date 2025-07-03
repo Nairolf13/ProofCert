@@ -19,10 +19,14 @@ import {
   
 } from '@heroicons/react/24/outline';
 import { ModalConnectWallet } from '../components/ModalConnectWallet';
+import { ClassicLoginModal } from '../components/ClassicLoginModal';
+import { ClassicRegisterModal } from '../components/ClassicRegisterModal';
 
 export const HomePage: React.FC = () => {
   const { isLoggedIn } = useMultiversXAuth();
   const [showConnectModal, setShowConnectModal] = React.useState(false);
+  const [showClassicLogin, setShowClassicLogin] = React.useState(false);
+  const [showClassicRegister, setShowClassicRegister] = React.useState(false);
 
   // Redirect to dashboard if authenticated
   
@@ -78,7 +82,21 @@ export const HomePage: React.FC = () => {
                     className="border-2 border-blue-600 text-blue-600 px-8 py-4 rounded-2xl text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 no-underline"
                     onClick={() => setShowConnectModal(true)}
                   >
-                    Se connecter
+                    Se connecter avec MultiversX
+                  </button>
+                  <button
+                    type="button"
+                    className="border-2 border-gray-400 text-gray-700 px-8 py-4 rounded-2xl text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 no-underline"
+                    onClick={() => setShowClassicLogin(true)}
+                  >
+                    Connexion classique
+                  </button>
+                  <button
+                    type="button"
+                    className="border-2 border-gray-400 text-gray-700 px-8 py-4 rounded-2xl text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 no-underline"
+                    onClick={() => setShowClassicRegister(true)}
+                  >
+                    Inscription classique
                   </button>
                 </>
               )}
@@ -409,6 +427,22 @@ export const HomePage: React.FC = () => {
           </section>
         )}
         <ModalConnectWallet isOpen={showConnectModal} onClose={() => setShowConnectModal(false)} />
+        <ClassicLoginModal
+          isOpen={showClassicLogin}
+          onClose={() => setShowClassicLogin(false)}
+          onSwitchToRegister={() => {
+            setShowClassicLogin(false);
+            setShowClassicRegister(true);
+          }}
+        />
+        <ClassicRegisterModal
+          isOpen={showClassicRegister}
+          onClose={() => setShowClassicRegister(false)}
+          onSwitchToLogin={() => {
+            setShowClassicRegister(false);
+            setShowClassicLogin(true);
+          }}
+        />
       </div>
     </ImmersiveLayout>
   );

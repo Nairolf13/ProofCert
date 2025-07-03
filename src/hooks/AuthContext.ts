@@ -1,4 +1,4 @@
-import { createContext } from 'react';
+import { createContext, useContext } from 'react';
 import type { User, RegisterRequest, LoginRequest } from '../types';
 
 export interface AuthContextProps {
@@ -14,3 +14,9 @@ export interface AuthContextProps {
 }
 
 export const AuthContext = createContext<AuthContextProps | undefined>(undefined);
+
+export function useAuthContext() {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuthContext must be used within an AuthProvider');
+  return context;
+}

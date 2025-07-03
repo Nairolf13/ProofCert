@@ -66,7 +66,8 @@ router.post('/login', async (req, res) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { hashedPassword, ...userWithoutPassword } = user;
     res.json({ user: userWithoutPassword, accessToken });
-  } catch {
+  } catch (err) {
+    console.error('Erreur /api/auth/login:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 }) as import('express').RequestHandler;
@@ -75,7 +76,7 @@ router.post('/login', async (req, res) => {
 router.post('/refresh', rateLimit({ windowMs: 60_000, max: 5 }), async (req, res) => {
   try {
     const refreshToken = req.cookies.refreshToken;
-    if (!refreshToken) return res.sendStatus(401);
+    if (!refreshToken) return res.status(401).json({ error: 'No refresh token' });
     // Correction: bcrypt hash cannot be searched directly, must compare all valid tokens
     const dbTokens = await prisma.refreshToken.findMany({
       where: { expiresAt: { gt: new Date() } }
@@ -87,7 +88,7 @@ router.post('/refresh', rateLimit({ windowMs: 60_000, max: 5 }), async (req, res
         break;
       }
     }
-    if (!dbToken) return res.sendStatus(403);
+    if (!dbToken) return res.status(403).json({ error: 'Invalid refresh token' });
     // Rotation: delete old, issue new
     await prisma.refreshToken.delete({ where: { id: dbToken.id } });
     const newRefreshToken = generateRefreshToken();
@@ -130,7 +131,7 @@ router.post('/logout', async (req, res) => {
       }
     }
     res.clearCookie('refreshToken', { path: '/api/auth/refresh' });
-    res.sendStatus(204);
+    res.status(204).json({ message: 'Logged out' });
   } catch {
     res.status(500).json({ error: 'Internal server error' });
   }
