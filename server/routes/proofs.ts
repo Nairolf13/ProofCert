@@ -102,7 +102,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
   try {
     const proof = await prisma.proof.findFirst({ where: { id, userId } });
     if (!proof) { res.status(404).json({ error: 'Proof not found' }); return; }
-    const updateData: Record<string, any> = {};
+    const updateData: Partial<{ transactionHash: string; ipfsHash: string }> = {};
     if (transactionHash) updateData.transactionHash = transactionHash;
     if (ipfsHash) updateData.ipfsHash = ipfsHash;
     const updated = await prisma.proof.update({ where: { id }, data: updateData });

@@ -51,16 +51,19 @@ router.post('/properties', authenticateToken, requireRole('OWNER'), async (req, 
 // Lister les biens (uniquement ceux de l'utilisateur connecté si OWNER)
 router.get('/properties', authenticateToken, async (req, res) => {
   const user = req.user;
+  console.log('[GET /properties] user.id:', user?.id, 'user.role:', user?.role);
   try {
     if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
     let properties;
-    if (user.role === 'OWNER') {
+    if (user.role === 'ADMIN') {
+      // L'admin voit tout
       properties = await prisma.property.findMany({ 
-        where: { ownerId: user.id }, 
         include: { owner: { select: { id: true, username: true, email: true, profileImage: true } } } 
       });
     } else {
+      // Tous les autres rôles ne voient que leurs propres propriétés
       properties = await prisma.property.findMany({ 
+        where: { ownerId: user.id }, 
         include: { owner: { select: { id: true, username: true, email: true, profileImage: true } } } 
       });
     }

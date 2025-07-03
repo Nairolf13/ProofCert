@@ -6,6 +6,7 @@ import { Button } from '../components/Button';
 import { ImmersiveLayout } from '../components/ImmersiveLayout';
 import { FavoriteButton } from '../components/FavoriteButton';
 import { useFavorites } from '../hooks/useFavorites';
+import { useAuthContext } from '../hooks/AuthContext';
 import {
   MagnifyingGlassIcon,
   MapPinIcon,
@@ -19,6 +20,7 @@ import {
 export const PropertiesPage: React.FC = () => {
   const navigate = useNavigate();
   const { toggleFavorite, isFavorite } = useFavorites();
+  const { user } = useAuthContext();
   const [properties, setProperties] = useState<Property[]>([]);
   const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -37,16 +39,15 @@ export const PropertiesPage: React.FC = () => {
 
   useEffect(() => {
     fetchProperties();
-  }, []);
+  }, [user]); // refetch si user change
 
   const fetchProperties = async () => {
     try {
       setIsLoading(true);
-      // Utilise la nouvelle méthode qui récupère toutes les propriétés publiques
-      const data = await propertyApi.getAllPublic();
+      // On ne filtre plus côté client : le backend renvoie tout pour l'admin, seulement les biens de l'utilisateur sinon
+      const data = await propertyApi.getAll();
       setProperties(data);
       setFilteredProperties(data);
-      
       // Extraire les pays et villes uniques (filtrer les undefined)
       const uniqueCountries = [...new Set(data.map(p => p.country).filter((country): country is string => Boolean(country)))];
       const uniqueCities = [...new Set(data.map(p => p.city).filter((city): city is string => Boolean(city)))];

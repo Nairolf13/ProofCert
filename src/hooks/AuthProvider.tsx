@@ -47,7 +47,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isAuthLoading,
     login,
     register,
-    connectWallet: async () => {},
+    connectWallet: async () => {
+      // Ne rien faire ici : la connexion wallet ne doit pas toucher l'état du user classique
+    },
     disconnect,
     updateUser,
   };

@@ -184,6 +184,14 @@ export const userApi = {
       throw new Error(getErrorMessage(error, 'Profile image update failed'));
     }
   },
+  getByWallet: async (walletAddress: string): Promise<User | null> => {
+    try {
+      const res = await api.get(`/users/by-wallet/${walletAddress}`);
+      return res.data;
+    } catch {
+      return null;
+    }
+  },
 };
 
 export default api;

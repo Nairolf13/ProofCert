@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useMultiversXAuth } from '../hooks/useMultiversXAuth';
 import { useAuthContext } from '../hooks/AuthContext';
@@ -13,6 +13,7 @@ import {
   CalendarDaysIcon,
   ArchiveBoxIcon
 } from '@heroicons/react/24/outline';
+import { userApi } from '../api/user';
 
 const navigation = [
   { name: 'Tableau de bord', href: '/dashboard', icon: HomeIcon },
@@ -28,7 +29,23 @@ export const Navbar: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWall
   const { user: web3User, isLoggedIn: isWeb3LoggedIn, logout: web3Logout } = useMultiversXAuth();
   const { user: classicUser, isAuthenticated: isClassicLoggedIn, disconnect: classicLogout } = useAuthContext();
   const location = useLocation();
+  const [isWalletAdmin, setIsWalletAdmin] = useState(false);
+
   const isActive = (path: string) => location.pathname.startsWith(path);
+
+  useEffect(() => {
+    let ignore = false;
+    const checkWalletAdmin = async () => {
+      if (isWeb3LoggedIn && web3User && web3User.walletAddress) {
+        const user = await userApi.getByWallet(web3User.walletAddress);
+        if (!ignore) setIsWalletAdmin(!!user && user.role === 'ADMIN');
+      } else {
+        if (!ignore) setIsWalletAdmin(false);
+      }
+    };
+    checkWalletAdmin();
+    return () => { ignore = true; };
+  }, [isWeb3LoggedIn, web3User]);
 
   // Déconnexion selon le mode d'auth
   const handleLogout = async () => {
@@ -42,8 +59,13 @@ export const Navbar: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWall
 
   // Affichage info utilisateur
   let userInfo = null;
-  // On priorise l'affichage admin si le compte classique est connecté et admin
-  const isAdmin = isClassicLoggedIn && classicUser && classicUser.role === 'ADMIN';
+  // Section admin si :
+  // - user classique connecté ET admin
+  // - OU wallet connecté ET walletAddress du user classique admin === walletAddress du wallet connecté
+  const isAdmin = (
+    (isClassicLoggedIn && classicUser && classicUser.role === 'ADMIN') ||
+    isWalletAdmin
+  );
   if (isClassicLoggedIn && classicUser) {
     userInfo = (
       <span className="text-xs text-secondary font-medium truncate max-w-[160px]" title={classicUser.email}>
