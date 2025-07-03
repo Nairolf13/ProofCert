@@ -20,7 +20,6 @@ const navigation = [
   { name: 'Locations', href: '/rentals', icon: ClipboardDocumentListIcon },
   { name: 'Mes réservations', href: '/my-reservations', icon: CalendarDaysIcon },
   { name: 'Preuves', href: '/proofs', icon: ClipboardDocumentListIcon },
-  { name: 'Créer preuve', href: '/add-proof', icon: PlusIcon },
   { name: 'Profil', href: '/profile', icon: UserIcon },
 ];
 

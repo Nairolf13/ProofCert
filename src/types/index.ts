@@ -7,7 +7,7 @@ export interface User {
   createdAt: string;
   updatedAt: string;
   profileImage?: string;
-  role?: 'OWNER' | 'TENANT';
+  role?: 'OWNER' | 'TENANT' | 'ADMIN';
 }
 
 export interface Review {
@@ -45,6 +45,8 @@ export interface Proof {
   user?: User;
   createdAt: string;
   updatedAt: string;
+  transactionHash?: string;
+  deletedAt?: string | null;
 }
 
 export const ProofType = {

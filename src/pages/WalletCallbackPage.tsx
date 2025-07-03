@@ -4,7 +4,7 @@ import { useMultiversX } from '../hooks/useMultiversX';
 
 const WalletCallbackPage: React.FC = () => {
   const navigate = useNavigate();
-  const { isConnected } = useMultiversX();
+  const { isLoggedIn } = useMultiversX();
 
   useEffect(() => {
     // Cette page sera utilisée pour traiter le retour du Web Wallet
@@ -23,7 +23,7 @@ const WalletCallbackPage: React.FC = () => {
         
         // Rediriger vers le dashboard
         navigate('/dashboard');
-      } else if (isConnected) {
+      } else if (isLoggedIn) {
         // Si déjà connecté, rediriger vers le dashboard
         navigate('/dashboard');
       } else {
@@ -36,7 +36,7 @@ const WalletCallbackPage: React.FC = () => {
     const timeout = setTimeout(handleCallback, 1000);
     
     return () => clearTimeout(timeout);
-  }, [navigate, isConnected]);
+  }, [navigate, isLoggedIn]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">

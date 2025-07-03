@@ -5,9 +5,19 @@ import { MediaCaptureComponent } from '../components/MediaCaptureComponent';
 import { MediaPreview } from '../components/MediaPreview';
 import { ProofType } from '../types';
 import { proofsApi } from '../api/proofs';
+import { sha256File } from '../utils/hash';
+import { sendTransactions } from '@multiversx/sdk-dapp/services/transactions/sendTransactions';
+import { useGetAccountInfo } from '@multiversx/sdk-dapp/hooks';
+import { uploadToIPFS } from '../utils/ipfs';
 
-export const AddProofPage: React.FC = () => {
+interface AddProofPageProps {
+  propertyId?: string;
+  onSuccess?: () => void;
+}
+
+export const AddProofPage: React.FC<AddProofPageProps> = ({ propertyId, onSuccess }) => {
   const navigate = useNavigate();
+  const { address } = useGetAccountInfo();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [type, setType] = useState<ProofType>('TEXT');
@@ -60,40 +70,70 @@ export const AddProofPage: React.FC = () => {
         throw new Error('Un fichier est requis pour ce type de preuve');
       }
 
-      // Pour les fichiers, on les stocke temporairement en base64
-      let fileData: string | null = null;
-      if (file && (type === 'IMAGE' || type === 'VIDEO' || type === 'AUDIO' || type === 'DOCUMENT')) {
-        fileData = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = () => reject(new Error('Erreur lors de la lecture du fichier'));
-          reader.readAsDataURL(file);
-        });
-      }
-
       // Préparer les données de la preuve
-      const proofData = {
+      interface ProofData {
+        title: string;
+        content: string;
+        contentType: ProofType;
+        isPublic: boolean;
+        propertyId?: string;
+      }
+      const proofData: ProofData = {
         title: title.trim(),
         content: type === 'TEXT' ? content.trim() : `Fichier: ${file?.name || 'Fichier sans nom'}`,
         contentType: type,
         isPublic: false, // Par défaut, les preuves sont privées
+        ...(propertyId ? { propertyId } : {})
       };
 
       // Créer la preuve via l'API
       const createdProof = await proofsApi.create(proofData);
-      
-      // Stocker le fichier temporairement avec l'ID de la preuve
-      if (fileData && createdProof.id) {
-        localStorage.setItem(`proof_file_${createdProof.id}`, fileData);
-        localStorage.setItem(`proof_file_type_${createdProof.id}`, file?.type || 'application/octet-stream');
-        localStorage.setItem(`proof_file_name_${createdProof.id}`, file?.name || 'fichier');
+
+      // --- UPLOAD IPFS ---
+      let ipfsHash: string | undefined;
+      if (file && (type === 'IMAGE' || type === 'VIDEO' || type === 'AUDIO' || type === 'DOCUMENT')) {
+        ipfsHash = await uploadToIPFS(file);
+        if (ipfsHash) {
+          await proofsApi.updateIpfsHash(createdProof.id, ipfsHash);
+        }
       }
-      
+      // --- Ancrage blockchain MultiversX ---
+      if (file && createdProof) {
+        // 1. Calculer le hash SHA-256
+        const fileHash = await sha256File(file);
+        // 2. Préparer le payload
+        const payload = Buffer.from(JSON.stringify({
+          sha256: fileHash,
+          ipfs: ipfsHash,
+          type,
+          proofId: createdProof.id,
+          timestamp: Date.now()
+        })).toString('hex');
+        // 3. Envoyer la transaction MultiversX et récupérer le hash
+        const txResult = await sendTransactions({
+          transactions: [{
+            value: '0',
+            data: payload,
+            receiver: address,
+            gasLimit: 6000000
+          }],
+          transactionsDisplayInfo: {
+            processingMessage: 'Ancrage de la preuve sur la blockchain...',
+            errorMessage: 'Erreur lors de l\'ancrage',
+            successMessage: 'Preuve ancrée avec succès !'
+          }
+        });
+        // Récupérer le hash de transaction (sessionId)
+        const transactionHash = txResult?.sessionId;
+        if (transactionHash) {
+          await proofsApi.updateTransactionHash(createdProof.id, transactionHash);
+        }
+      }
+      // --- Fin ancrage blockchain ---
       // Afficher un message de succès et rediriger
-      console.log('Preuve créée avec succès:', createdProof);
+      if (onSuccess) onSuccess();
       navigate(`/proof/${createdProof.id}`);
     } catch (error) {
-      console.error('Erreur lors de la création de la preuve:', error);
       setError(error instanceof Error ? error.message : 'Une erreur est survenue lors de la création de la preuve');
     } finally {
       setIsSubmitting(false);

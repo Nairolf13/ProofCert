@@ -40,6 +40,8 @@ model Proof {
   location    String? 
   isPublic    Boolean  @default(false)
   shareToken  String   @unique @default(cuid())
+  transactionHash String? // Hash de la transaction blockchain
+  deletedAt   DateTime? // Soft delete: null = actif, non null = archivé
   
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -137,6 +139,7 @@ enum ProofType {
 enum Role {
   OWNER
   TENANT
+  ADMIN // Ajout du rôle admin
 }
 
 enum PricePeriod {

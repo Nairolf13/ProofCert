@@ -59,4 +59,28 @@ export const proofsApi = {
       throw new Error(getErrorMessage(error, 'Failed to delete proof'));
     }
   },
+  updateTransactionHash: async (id: string, transactionHash: string): Promise<Proof> => {
+    try {
+      const response = await api.patch(`/proofs/${id}`, { transactionHash });
+      return response.data;
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Failed to update transaction hash'));
+    }
+  },
+  updateIpfsHash: async (id: string, ipfsHash: string): Promise<Proof> => {
+    try {
+      const response = await api.patch(`/proofs/${id}`, { ipfsHash });
+      return response.data;
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Failed to update IPFS hash'));
+    }
+  },
+  getByPropertyId: async (propertyId: string): Promise<Proof[]> => {
+    try {
+      const response = await api.get(`/proofs/by-property/${propertyId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Failed to fetch proofs for property'));
+    }
+  },
 };

@@ -22,6 +22,7 @@ import MyReservationsPage from './pages/MyReservationsPage';
 import { FavoritesPage } from './pages/FavoritesPage';
 import WalletCallbackPage from './pages/WalletCallbackPage';
 import { UnlockPage } from './pages/UnlockPage';
+import { AdminProofsPage } from './pages/AdminProofsPage';
 
 const AppRouter: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWalletModal }) => {
   return (
@@ -66,6 +67,7 @@ const AppRouter: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWalletMo
                 <Route path="/properties/:propertyId/proofs" element={<PropertyProofsPage />} />
                 <Route path="/add-property-proof/:propertyId" element={<AddPropertyProofPage />} />
                 <Route path="/properties/:id" element={<PropertyDetailPage />} />
+                <Route path="/admin-proofs" element={<AdminProofsPage />} />
               </Route>
             </Routes>
           </div>

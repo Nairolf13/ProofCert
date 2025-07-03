@@ -10,7 +10,8 @@ import {
   PlusIcon,
   UserIcon,
   ArrowRightOnRectangleIcon,
-  CalendarDaysIcon
+  CalendarDaysIcon,
+  ArchiveBoxIcon
 } from '@heroicons/react/24/outline';
 
 const navigation = [
@@ -20,7 +21,6 @@ const navigation = [
   { name: 'Locations', href: '/rentals', icon: ClipboardDocumentListIcon },
   { name: 'Mes réservations', href: '/my-reservations', icon: CalendarDaysIcon },
   { name: 'Preuves', href: '/proofs', icon: ClipboardDocumentListIcon },
-  { name: 'Créer preuve', href: '/add-proof', icon: PlusIcon },
   { name: 'Profil', href: '/profile', icon: UserIcon },
 ];
 
@@ -42,6 +42,8 @@ export const Navbar: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWall
 
   // Affichage info utilisateur
   let userInfo = null;
+  // On priorise l'affichage admin si le compte classique est connecté et admin
+  const isAdmin = isClassicLoggedIn && classicUser && classicUser.role === 'ADMIN';
   if (isClassicLoggedIn && classicUser) {
     userInfo = (
       <span className="text-xs text-secondary font-medium truncate max-w-[160px]" title={classicUser.email}>
@@ -84,6 +86,19 @@ export const Navbar: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWall
             </Link>
           );
         })}
+        {isAdmin && (
+          <Link
+            to="/admin-proofs"
+            className={`flex items-center gap-3 px-3 py-3 rounded-xl font-semibold text-base transition-all duration-150 w-full group
+              ${isActive('/admin-proofs')
+                ? 'bg-primary-light text-primary shadow-md scale-105'
+                : 'text-secondary hover:bg-surface-secondary hover:text-primary'}
+            `}
+          >
+            <ArchiveBoxIcon className={`w-6 h-6 ${isActive('/admin-proofs') ? 'text-primary' : 'text-secondary group-hover:text-primary'}`} />
+            <span>Archives Preuves (Admin)</span>
+          </Link>
+        )}
       </nav>
       <div className="mt-auto flex flex-col gap-3 w-full">
         {/* Affichage wallet MultiversX (bouton modal) */}

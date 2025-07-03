@@ -3,7 +3,7 @@ import type { Proof } from '../types';
 import { ProofType } from '../types';
 import { proofsApi } from '../api/proofs';
 
-export const useProofs = () => {
+export const useProofs = (options?: { includeDeleted?: boolean }) => {
   const [proofs, setProofs] = useState<Proof[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -11,7 +11,10 @@ export const useProofs = () => {
   const fetchProofs = useCallback(async () => {
     try {
       setIsLoading(true);
-      const fetchedProofs = await proofsApi.getAll();
+      let fetchedProofs = await proofsApi.getAll();
+      if (!options?.includeDeleted) {
+        fetchedProofs = fetchedProofs.filter(p => !p.deletedAt);
+      }
       setProofs(fetchedProofs);
       setError(null);
     } catch (err) {
@@ -20,7 +23,7 @@ export const useProofs = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [options]);
 
   useEffect(() => {
     fetchProofs();

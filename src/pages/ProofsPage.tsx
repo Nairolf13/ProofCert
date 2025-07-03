@@ -9,6 +9,8 @@ import {
 import { Link } from 'react-router-dom';
 import { ImmersiveLayout } from '../components/ImmersiveLayout';
 import { Button } from '../components/Button';
+import { useAuthContext } from '../hooks/AuthContext';
+import { useMultiversXAuth } from '../hooks/useMultiversXAuth';
 
 function formatDate(date: string) {
   return date.split('T')[0];
@@ -33,7 +35,14 @@ function getProofIcon(contentType: ProofType) {
 
 export const ProofsPage: React.FC = () => {
   const { proofs, isLoading } = useProofs();
-  const filteredProofs = proofs;
+  const { user: classicUser } = useAuthContext();
+  const { user: web3User } = useMultiversXAuth();
+  const filteredProofs = proofs.filter(
+    p =>
+      (classicUser && p.userId === classicUser.id) ||
+      (web3User && p.userId === web3User.address)
+  );
+
 
   return (
     <ImmersiveLayout>

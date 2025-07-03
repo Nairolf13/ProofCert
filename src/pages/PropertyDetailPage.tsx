@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { propertyApi } from '../api/property';
 import { rentalApi } from '../api/rental';
-import type { Property, Review, Rental } from '../types';
+import { proofsApi } from '../api/proofs';
+import type { Property, Review, Rental, Proof } from '../types';
 import { Button } from '../components/Button';
 import { useMultiversXAuth } from '../hooks/useMultiversXAuth';
 
@@ -13,8 +14,10 @@ import { PropertyDetailsCard } from '../components/PropertyDetailsCard';
 import { PropertyReviewsSection } from '../components/PropertyReviewsSection';
 import { Calendar } from '../components/Calendar';
 import { PropertyReservationForm } from '../components/PropertyReservationForm';
+import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
+import { getIPFSUrl } from '../utils/ipfs';
+import { AddProofPage } from './AddProofPage';
 
-// Type de données pour l'édition d'un bien
 interface EditPropertyData {
   title: string;
   address: string;
@@ -103,6 +106,9 @@ export const PropertyDetailPage: React.FC = () => {
   const [endDate, setEndDate] = useState('');
   const [isBooking, setIsBooking] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const navigate = useNavigate();
+  const [proofs, setProofs] = useState<Proof[]>([]);
+  const [showAddProof, setShowAddProof] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -127,6 +133,8 @@ export const PropertyDetailPage: React.FC = () => {
       .finally(() => setIsLoading(false));
     // Récupère les avis
     propertyApi.getReviews(id).then(setReviews).catch(() => {});
+    // Récupère les preuves
+    proofsApi.getByPropertyId(id).then(setProofs).catch(() => setProofs([]));
   }, [id, isEditing, isBooking]);
 
   useEffect(() => {
@@ -288,6 +296,8 @@ export const PropertyDetailPage: React.FC = () => {
     }
   };
 
+  
+
   return (
     <div className="min-h-screen w-full bg-surface-secondary font-serif text-primary">
       <section className="w-full max-w-6xl mx-auto py-8 px-4 md:px-8 animate-fade-in">
@@ -409,6 +419,42 @@ export const PropertyDetailPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Section Preuves associées */}
+          <section className="my-12">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold">Preuves associées à ce bien</h2>
+              <Button onClick={() => setShowAddProof(true)} variant="primary">Ajouter une preuve</Button>
+            </div>
+            <div className="bg-white/80 rounded-2xl shadow p-4 md:p-6 border border-primary/10">
+              {proofs.length === 0 ? (
+                <div className="text-gray-500">Aucune preuve associée à ce bien.</div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {proofs.map((proof) => (
+                    <Card key={proof.id} className="cursor-pointer hover:shadow-lg transition min-h-[180px] max-w-xs mx-auto">
+                      <div onClick={() => navigate(`/proof/${proof.id}`)}>
+                        <CardHeader>
+                          <CardTitle className="truncate text-base font-semibold">{proof.title || proof.contentType}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-xs text-gray-500 mb-1 truncate">{proof.hash}</div>
+                          <div className="text-xs text-gray-700 mb-1">{proof.contentType}</div>
+                          {proof.ipfsHash && proof.contentType === 'IMAGE' && (
+                            <img src={getIPFSUrl(proof.ipfsHash)} alt={proof.title || 'Preuve'} className="w-full h-24 object-contain rounded border my-1" />
+                          )}
+                          {proof.ipfsHash && proof.contentType === 'DOCUMENT' && (
+                            <a href={getIPFSUrl(proof.ipfsHash)} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-xs">Voir le document</a>
+                          )}
+                          <div className="text-[10px] text-gray-400 mt-1">{new Date(proof.timestamp).toLocaleString()}</div>
+                        </CardContent>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+
           <PropertyReviewsSection
             reviews={reviews}
             user={user ? {
@@ -506,6 +552,16 @@ export const PropertyDetailPage: React.FC = () => {
                 <Button type="submit" variant="primary" className="px-8 py-2 btn-primary text-white font-semibold transition-colors">Enregistrer</Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Section des preuves associées */}
+      {showAddProof && id && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-xl relative">
+            <button onClick={() => setShowAddProof(false)} className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-2xl">×</button>
+            <AddProofPage propertyId={id} onSuccess={() => { setShowAddProof(false); proofsApi.getByPropertyId(id).then(setProofs); }} />
           </div>
         </div>
       )}

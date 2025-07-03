@@ -158,27 +158,27 @@ export const ProofDetailPage: React.FC = () => {
                 ) : proof.contentType === 'IMAGE' && (localFileData || proof.ipfsHash) ? (
                   <div className="bg-gray-50 rounded-lg flex items-center justify-center p-4">
                     <img
-                      src={localFileData || (proof.ipfsHash?.startsWith('http') ? proof.ipfsHash : `https://ipfs.io/ipfs/${proof.ipfsHash}`)}
+                      src={localFileData || getIPFSUrl(proof.ipfsHash!)}
                       alt={proof.title || 'Proof image'}
                       className="max-h-96 max-w-full rounded-lg shadow"
                       style={{ objectFit: 'contain' }}
                     />
                   </div>
-                ) : proof.contentType === 'VIDEO' && localFileData ? (
+                ) : proof.contentType === 'VIDEO' && (localFileData || proof.ipfsHash) ? (
                   <div className="bg-gray-50 rounded-lg flex items-center justify-center p-4">
                     <video controls className="max-h-96 max-w-full rounded-lg shadow">
-                      <source src={localFileData} type={localFileType} />
+                      <source src={localFileData || getIPFSUrl(proof.ipfsHash!)} type={localFileType || undefined} />
                       Votre navigateur ne supporte pas la lecture vidéo.
                     </video>
                   </div>
-                ) : proof.contentType === 'AUDIO' && localFileData ? (
+                ) : proof.contentType === 'AUDIO' && (localFileData || proof.ipfsHash) ? (
                   <div className="bg-gray-50 rounded-lg flex items-center justify-center p-4">
                     <audio controls className="w-full">
-                      <source src={localFileData} type={localFileType} />
+                      <source src={localFileData || getIPFSUrl(proof.ipfsHash!)} type={localFileType || undefined} />
                       Votre navigateur ne supporte pas la lecture audio.
                     </audio>
                   </div>
-                ) : proof.contentType === 'DOCUMENT' && localFileData ? (
+                ) : proof.contentType === 'DOCUMENT' && (localFileData || proof.ipfsHash) ? (
                   <div className="bg-gray-50 rounded-lg p-4">
                     <div className="flex items-center justify-center mb-4">
                       <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
@@ -188,19 +188,19 @@ export const ProofDetailPage: React.FC = () => {
                       </div>
                     </div>
                     <div className="text-center">
-                      <p className="font-semibold text-gray-800">{localFileName}</p>
+                      <p className="font-semibold text-gray-800">{localFileName || 'Document certifié'}</p>
                       <p className="text-sm text-gray-600">Document certifié</p>
                     </div>
-                    {localFileType === 'application/pdf' && (
+                    {(localFileType === 'application/pdf' || (!localFileType && proof.ipfsHash)) && (
                       <iframe
-                        src={localFileData}
-                        title={localFileName}
+                        src={localFileData || getIPFSUrl(proof.ipfsHash!)}
+                        title={localFileName || 'Document certifié'}
                         className="w-full h-96 rounded-lg border mt-4"
                       />
                     )}
-                    {localFileType.startsWith('image/') && (
+                    {localFileType && localFileType.startsWith('image/') && (
                       <img
-                        src={localFileData}
+                        src={localFileData || undefined}
                         alt={localFileName}
                         className="max-h-96 max-w-full rounded-lg shadow mt-4 mx-auto"
                         style={{ objectFit: 'contain' }}
@@ -352,9 +352,9 @@ export const ProofDetailPage: React.FC = () => {
                 >
                   Generate QR Code
                 </Button>
-                {proof.ipfsHash && (
+                {proof.transactionHash ? (
                   <a
-                    href={getIPFSUrl(proof.ipfsHash)}
+                    href={`https://explorer.multiversx.com/transactions/${proof.transactionHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block"
@@ -364,10 +364,10 @@ export const ProofDetailPage: React.FC = () => {
                       className="w-full"
                       leftIcon={<ArrowTopRightOnSquareIcon className="w-4 h-4" />}
                     >
-                      View on IPFS
+                      View on Blockchain
                     </Button>
                   </a>
-                )}
+                ) : null}
               </CardContent>
             </Card>
           </div>
