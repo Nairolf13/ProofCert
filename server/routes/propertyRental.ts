@@ -1,21 +1,33 @@
-import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
-import { authenticateToken } from '../middlewares/authenticateToken.ts';
+import { Router, Request, Response, NextFunction, RequestHandler } from 'express';
+import { PrismaClient, User } from '@prisma/client';
+import { authenticateToken } from '../middlewares/authenticateToken';
+
+// Extension de l'interface Request d'Express
+declare module 'express-serve-static-core' {
+  interface Request {
+    user?: User;
+  }
+}
 
 const router = Router();
 const prisma = new PrismaClient();
 
-type Role = 'OWNER' | 'TENANT';
+type UserRole = 'OWNER' | 'TENANT';
 
 // Middleware de rôle
-function requireRole(role: Role) {
-  return (req, res, next) => {
-    const user = req.user;
-    if (!user || user.role !== role) {
-      res.status(403).json({ error: 'Forbidden' });
-      return;
+function requireRole(requiredRole: UserRole): RequestHandler {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    try {
+      const user = req.user;
+      if (!user || user.role !== requiredRole) {
+        res.status(403).json({ error: 'Forbidden' });
+        return;
+      }
+      next();
+    } catch (error) {
+      console.error('Error in requireRole middleware:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
-    next();
   };
 }
 

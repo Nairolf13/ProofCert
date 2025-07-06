@@ -47,14 +47,61 @@ export const Navbar: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWall
     return () => { ignore = true; };
   }, [isWeb3LoggedIn, web3User]);
 
-  // Déconnexion selon le mode d'auth
+  // Déconnexion complète
   const handleLogout = async () => {
-    if (isWeb3LoggedIn) {
-      await web3Logout();
-    } else if (isClassicLoggedIn) {
-      await classicLogout();
+    try {
+      // 1. Déconnexion Web3 si connecté
+      if (isWeb3LoggedIn) {
+        try {
+          await web3Logout();
+        } catch (error) {
+          console.warn('Erreur lors de la déconnexion Web3:', error);
+        }
+        
+        // Nettoyer manuellement les données WalletConnect
+        const walletConnectKeys = [
+          ...Object.keys(localStorage).filter(key => 
+            key.startsWith('wc@2') || 
+            key.startsWith('WALLETCONNECT') ||
+            key.startsWith('walletconnect')
+          ),
+          ...Object.keys(sessionStorage).filter(key => 
+            key.startsWith('wc@2') || 
+            key.startsWith('WALLETCONNECT') ||
+            key.startsWith('walletconnect')
+          )
+        ];
+        
+        walletConnectKeys.forEach(key => {
+          localStorage.removeItem(key);
+          sessionStorage.removeItem(key);
+        });
+      }
+      
+      // 2. Déconnexion classique si connecté
+      if (isClassicLoggedIn) {
+        try {
+          await classicLogout();
+        } catch (error) {
+          console.warn('Erreur lors de la déconnexion classique:', error);
+        }
+      }
+      
+      // 3. Nettoyage complet
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // 4. Forcer un rechargement complet
+      window.location.href = '/';
+      window.location.reload();
+    } catch (error) {
+      console.error('Erreur critique lors de la déconnexion:', error);
+      // En cas d'erreur, on force un nettoyage complet
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.href = '/';
+      window.location.reload();
     }
-    window.location.href = '/';
   };
 
   // Affichage info utilisateur

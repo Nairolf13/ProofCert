@@ -1,38 +1,24 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { nodePolyfills } from 'vite-plugin-node-polyfills'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { resolve } from 'path';
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [
-    react(),
-    nodePolyfills({
-      // Enable polyfills for specific globals and modules
-      globals: {
-        Buffer: true,
-        global: true,
-        process: true,
-      },
-      // Enable polyfills for specific Node.js modules
-      protocolImports: true,
-    })
-  ],
+  plugins: [react()],
   resolve: {
     alias: {
+      '@': resolve(__dirname, './src'),
       buffer: 'buffer',
       process: 'process/browser',
       stream: 'stream-browserify',
       util: 'util',
+      crypto: 'crypto-browserify',
     }
   },
   define: {
     'process.env': {},
-    'process.version': '"v18.0.0"',
-    'process.versions': '{ node: "18.0.0" }',
     'process.browser': 'true',
-    'process.platform': '"browser"',
     global: 'globalThis',
-    module: '{}',
   },
   optimizeDeps: {
     include: [
@@ -40,9 +26,9 @@ export default defineConfig({
       'process',
       'stream-browserify',
       'util',
-      'protobufjs/minimal',
-      'protobufjs'
+      'crypto-browserify',
     ],
+    exclude: ['unenv'],
     force: true,
     esbuildOptions: {
       define: {
@@ -55,17 +41,30 @@ export default defineConfig({
     commonjsOptions: {
       include: [/node_modules/],
       transformMixedEsModules: true
+    },
+    rollupOptions: {
+      onwarn(warning, warn) {
+        if (warning.code === 'MODULE_LEVEL_DIRECTIVE') {
+          return;
+        }
+        warn(warning);
+      }
     }
   },
   server: {
     host: true,
     port: 5173,
+    strictPort: true,
     proxy: {
-      '/api': 'http://localhost:3000',
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
   preview: {
     host: true,
-    port: 5173
+    port: 3000
   }
-})
+});
