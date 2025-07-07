@@ -1,26 +1,60 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ImmersiveLayout } from '../components/ImmersiveLayout';
 import { Button } from '../components/Button';
 import { UserIcon, WalletIcon, CalendarIcon, ArrowRightOnRectangleIcon, CameraIcon } from '@heroicons/react/24/outline';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMultiversXAuth } from '../hooks/useMultiversXAuth';
+import { useAuthContext } from '../hooks/AuthContext';
+import { Loader } from '../components/Loader';
 
 const ProfilePage: React.FC = () => {
-  const { account, isLoggedIn, logout } = useMultiversXAuth();
+  const { account, isLoggedIn, logout: walletLogout, isLoading: isWalletLoading } = useMultiversXAuth();
+  const { user: authUser, isAuthenticated, disconnect, isAuthLoading } = useAuthContext();
   const navigate = useNavigate();
   const [isUploading, setIsUploading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Redirect to unlock if not authenticated
-  React.useEffect(() => {
-    if (!isLoggedIn) {
-      navigate('/unlock');
+  // Vérifier l'authentification
+  useEffect(() => {
+    if (!isWalletLoading && !isAuthLoading) {
+      if (!isLoggedIn && !isAuthenticated) {
+        navigate('/login');
+      } else {
+        setIsLoading(false);
+      }
     }
-  }, [isLoggedIn, navigate]);
+  }, [isLoggedIn, isAuthenticated, isWalletLoading, isAuthLoading, navigate]);
 
-  const handleLogout = async () => {
-    await logout();
+  // Gérer la déconnexion selon le type d'authentification
+  const handleLogoutClick = async () => {
+    if (isLoggedIn) {
+      await walletLogout();
+    } else if (isAuthenticated) {
+      disconnect();
+    }
     navigate('/');
   };
+
+  // Récupérer les informations de l'utilisateur
+  const user = isLoggedIn && account ? {
+    email: account.address,
+    name: account.username || 'Utilisateur Wallet',
+    avatar: null,
+    role: 'ADMIN' // Par défaut pour les utilisateurs wallet
+  } : authUser ? {
+    email: authUser.email,
+    name: authUser.username || 'Utilisateur',
+    avatar: authUser.profileImage,
+    role: authUser.role || 'TENANT'
+  } : null;
+
+  if (isLoading || isAuthLoading || !user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader size="lg" />
+      </div>
+    );
+  }
 
   const handleProfileImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -65,13 +99,16 @@ const ProfilePage: React.FC = () => {
     });
   };
 
-  if (!isLoggedIn || !account) {
+  // Vérifier si l'utilisateur est connecté soit via wallet soit via auth classique
+  const isUserAuthenticated = isLoggedIn || isAuthenticated;
+  
+  if (!isUserAuthenticated) {
     return (
       <ImmersiveLayout>
         <div className="flex flex-col items-center justify-center min-h-[60vh]">
           <UserIcon className="w-16 h-16 text-secondary mb-4" />
           <h2 className="text-3xl font-extrabold mb-2 text-primary">Non authentifié</h2>
-          <p className="text-lg text-secondary mb-6">Connectez-vous pour accéder à votre profil magazine.</p>
+          <p className="text-lg text-secondary mb-6">Connectez-vous pour accéder à votre profil </p>
           <Link to="/unlock">
             <Button className="btn-primary px-8 py-3 text-lg font-bold rounded-2xl shadow-xl hover:scale-105 transition">Connexion</Button>
           </Link>
@@ -115,24 +152,34 @@ const ProfilePage: React.FC = () => {
         </div>
         {/* Infos utilisateur */}
         <div className="flex flex-col items-center gap-2 w-full">
-          <span className="text-3xl font-extrabold text-primary mb-0.5 truncate max-w-xs drop-shadow">
-            {account.address.slice(0, 6)}...{account.address.slice(-4)}
-          </span>
-          <span className="text-secondary text-lg truncate max-w-xs mb-2">MultiversX Wallet</span>
-          <div className="flex flex-wrap gap-3 justify-center mt-2">
-            <span className="inline-flex items-center gap-1 px-4 py-1 rounded-full bg-accent-light text-accent text-base font-medium shadow border border-accent">
-              <WalletIcon className="w-5 h-5" />
-              {account.address}
-            </span>
-            <span className="inline-flex items-center gap-1 px-4 py-1 rounded-full bg-primary-light text-primary text-base font-medium shadow border border-primary">
-              <CalendarIcon className="w-5 h-5" />
-              Connecté aujourd'hui
-            </span>
-          </div>
-          <span className="inline-flex items-center gap-1 px-4 py-1 rounded-full bg-surface-secondary text-secondary text-xs font-mono mt-2 border border-light">
-            <WalletIcon className="w-4 h-4" />
-            Balance: {account.balance ? `${account.balance} EGLD` : 'Loading...'}
-          </span>
+          <h1 className="text-3xl font-extrabold text-primary mb-0.5 truncate max-w-xs drop-shadow">
+            {user.name}
+          </h1>
+          <p className="text-secondary text-lg truncate max-w-xs">
+            {user.email}
+          </p>
+          
+          {isLoggedIn && account && (
+            <>
+              <span className="text-secondary text-sm truncate max-w-xs mb-2">
+                Portefeuille MultiversX
+              </span>
+              <div className="flex flex-wrap gap-3 justify-center mt-2">
+                <span className="inline-flex items-center gap-1 px-4 py-1 rounded-full bg-accent-light text-accent text-base font-medium shadow border border-accent">
+                  <WalletIcon className="w-5 h-5" />
+                  {account.address.slice(0, 6)}...{account.address.slice(-4)}
+                </span>
+                <span className="inline-flex items-center gap-1 px-4 py-1 rounded-full bg-primary-light text-primary text-base font-medium shadow border border-primary">
+                  <CalendarIcon className="w-5 h-5" />
+                  Connecté aujourd'hui
+                </span>
+              </div>
+              <span className="inline-flex items-center gap-1 px-4 py-1 rounded-full bg-surface-secondary text-secondary text-xs font-mono mt-2 border border-light">
+                <WalletIcon className="w-4 h-4" />
+                Balance: {account.balance ? `${account.balance} EGLD` : 'Loading...'}
+              </span>
+            </>
+          )}
         </div>
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-4 w-full mt-8">
@@ -151,7 +198,7 @@ const ProfilePage: React.FC = () => {
           </Link>
           <Button
             className="btn-primary w-full sm:w-auto flex-1 text-lg font-bold shadow-xl focus:ring-2 focus:ring-primary"
-            onClick={handleLogout}
+            onClick={handleLogoutClick}
             leftIcon={<ArrowRightOnRectangleIcon className="w-6 h-6" />}
           >
             Se déconnecter

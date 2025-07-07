@@ -622,8 +622,11 @@ const PropertyCard: React.FC<{ property: Property }> = ({ property }) => {
   
   return (
     <Link 
-      to={`/properties/${property.id}`}
+      to={`/app/properties/${property.id}`}
       className="group block bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300"
+      onClick={(e) => {
+        e.stopPropagation();
+      }}
     >
       {/* Image */}
       <div className="relative h-48 bg-gray-200 overflow-hidden">

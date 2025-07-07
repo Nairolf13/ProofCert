@@ -2,6 +2,7 @@ import { useContext, useEffect, useState, type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useMultiversXAuth } from '../hooks/useMultiversXAuth';
 import { AuthContext } from '../hooks/AuthContext';
+import { Loader } from './Loader';
 
 interface PrivateRouteProps {
   children: ReactNode;
@@ -21,21 +22,29 @@ export const PrivateRoute: React.FC<PrivateRouteProps> = ({
 
   useEffect(() => {
     // Marquer comme initialisé après le premier rendu
-    setIsInitialized(true);
+    const timer = setTimeout(() => {
+      setIsInitialized(true);
+    }, 100);
+    return () => clearTimeout(timer);
   }, []);
 
-  // Pendant le chargement initial, ne rien afficher
-  if (!isInitialized || isWeb3Loading) {
-    return null;
+  // Pendant le chargement initial, afficher un loader
+  if (!isInitialized || isWeb3Loading || auth?.isAuthLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader size="lg" />
+      </div>
+    );
   }
 
   // Si l'utilisateur n'est connecté ni via Web3 ni via l'authentification classique
   if (!isWeb3LoggedIn && !isClassicLoggedIn) {
     // Stocker la tentative d'accès pour redirection après connexion
-    if (location.pathname !== '/') {
-      sessionStorage.setItem('redirectAfterLogin', location.pathname);
+    const redirectPath = location.pathname + location.search;
+    if (redirectPath !== '/') {
+      sessionStorage.setItem('redirectAfterLogin', redirectPath);
     }
-    return <Navigate to="/" replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   // Vérifier les droits admin si nécessaire

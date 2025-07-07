@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useProofs } from '../hooks/useProofs';
 import { ImmersiveLayout } from '../components/ImmersiveLayout';
 import { Link } from 'react-router-dom';
@@ -7,9 +7,18 @@ import { useAuthContext } from '../hooks/AuthContext';
 export const AdminProofsPage: React.FC = () => {
   const { user: classicUser } = useAuthContext();
   const isAdmin = classicUser?.role === 'ADMIN';
-  const { proofs, isLoading } = useProofs({ includeDeleted: true });
+  const { proofs, isLoading, refreshProofs } = useProofs({ 
+    includeDeleted: true,
+    autoFetch: true
+  });
+  
   const activeProofs = proofs.filter(p => !p.deletedAt);
   const archivedProofs = proofs.filter(p => !!p.deletedAt);
+  
+  // Rafraîchir les preuves au montage du composant
+  useEffect(() => {
+    refreshProofs();
+  }, [refreshProofs]);
 
   if (!isAdmin) {
     return (

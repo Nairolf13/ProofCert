@@ -5,6 +5,35 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Animations pour les notifications */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes progress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.3s ease-out forwards;
+}
+
+.animate-progress {
+  animation: progress 4.9s linear forwards;
+}
+
 /* ================================
    SYSTÈME DE COULEURS PROOFCERT
    ================================ */

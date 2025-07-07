@@ -68,6 +68,11 @@ const ProtectedLayout: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWa
               <PropertiesPage />
             </PrivateRoute>
           } />
+          <Route path="properties/:id" element={
+            <PrivateRoute>
+              <PropertyDetailPage />
+            </PrivateRoute>
+          } />
           <Route path="add-property" element={
             <PrivateRoute>
               <AddPropertyPage />
@@ -96,6 +101,16 @@ const ProtectedLayout: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWa
           <Route path="add-property-proof/:propertyId" element={
             <PrivateRoute>
               <AddPropertyProofPage />
+            </PrivateRoute>
+          } />
+          <Route path="admin/proofs" element={
+            <PrivateRoute adminOnly={true}>
+              <AdminProofsPage />
+            </PrivateRoute>
+          } />
+          <Route path="admin/users" element={
+            <PrivateRoute adminOnly={true}>
+              <div>Admin Users - Page en construction</div>
             </PrivateRoute>
           } />
           <Route path="properties/:id" element={

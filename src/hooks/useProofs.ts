@@ -3,16 +3,24 @@ import type { Proof } from '../types';
 import { ProofType } from '../types';
 import { proofsApi } from '../api/proofs';
 
-export const useProofs = (options?: { includeDeleted?: boolean }) => {
+interface UseProofsOptions {
+  includeDeleted?: boolean;
+  autoFetch?: boolean;
+}
+
+export const useProofs = (options: UseProofsOptions = {}) => {
+  const { includeDeleted = false, autoFetch = true } = options;
   const [proofs, setProofs] = useState<Proof[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchProofs = useCallback(async () => {
+    if (!autoFetch) return;
+    
     try {
       setIsLoading(true);
       let fetchedProofs = await proofsApi.getAll();
-      if (!options?.includeDeleted) {
+      if (!includeDeleted) {
         fetchedProofs = fetchedProofs.filter(p => !p.deletedAt);
       }
       setProofs(fetchedProofs);
@@ -23,7 +31,7 @@ export const useProofs = (options?: { includeDeleted?: boolean }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [options]);
+  }, [includeDeleted, autoFetch]);
 
   useEffect(() => {
     fetchProofs();

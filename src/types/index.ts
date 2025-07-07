@@ -121,6 +121,7 @@ export interface Property {
   isAvailable?: boolean;
   photos: string[];
   ownerId: string;
+  ownerWalletAddress?: string; // Ajout de l'adresse du portefeuille du propriétaire
   owner?: User;
   rentals?: Rental[];
   proofs?: Proof[];

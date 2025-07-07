@@ -16,13 +16,13 @@ import {
 import { userApi } from '../api/user';
 
 const navigation = [
-  { name: 'Tableau de bord', href: '/dashboard', icon: HomeIcon },
-  { name: 'Propriétés', href: '/properties', icon: ClipboardDocumentListIcon },
-  { name: 'Ajouter propriété', href: '/add-property', icon: PlusIcon },
-  { name: 'Locations', href: '/rentals', icon: ClipboardDocumentListIcon },
-  { name: 'Mes réservations', href: '/my-reservations', icon: CalendarDaysIcon },
-  { name: 'Preuves', href: '/proofs', icon: ClipboardDocumentListIcon },
-  { name: 'Profil', href: '/profile', icon: UserIcon },
+  { name: 'Tableau de bord', href: '/app/dashboard', icon: HomeIcon },
+  { name: 'Propriétés', href: '/app/properties', icon: ClipboardDocumentListIcon },
+  { name: 'Ajouter propriété', href: '/app/add-property', icon: PlusIcon },
+  { name: 'Locations', href: '/app/rentals', icon: ClipboardDocumentListIcon },
+  { name: 'Mes réservations', href: '/app/my-reservations', icon: CalendarDaysIcon },
+  { name: 'Preuves', href: '/app/proofs', icon: ClipboardDocumentListIcon },
+  { name: 'Profil', href: '/app/profile', icon: UserIcon },
 ];
 
 export const Navbar: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWalletModal }) => {
@@ -33,19 +33,41 @@ export const Navbar: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWall
 
   const isActive = (path: string) => location.pathname.startsWith(path);
 
+  // Vérifier le statut admin du wallet uniquement si nécessaire
   useEffect(() => {
     let ignore = false;
+    
     const checkWalletAdmin = async () => {
-      if (isWeb3LoggedIn && web3User && web3User.walletAddress) {
-        const user = await userApi.getByWallet(web3User.walletAddress);
-        if (!ignore) setIsWalletAdmin(!!user && user.role === 'ADMIN');
-      } else {
-        if (!ignore) setIsWalletAdmin(false);
+      // Ne pas vérifier si déjà admin via l'authentification classique
+      if (isClassicLoggedIn && classicUser?.role === 'ADMIN') {
+        setIsWalletAdmin(false);
+        return;
+      }
+      
+      // Vérifier le statut admin du wallet si connecté
+      if (isWeb3LoggedIn && web3User?.walletAddress) {
+        try {
+          const user = await userApi.getByWallet(web3User.walletAddress);
+          if (!ignore) {
+            setIsWalletAdmin(!!user && user.role === 'ADMIN');
+          }
+        } catch (error) {
+          console.error('Error checking wallet admin status:', error);
+          if (!ignore) setIsWalletAdmin(false);
+        }
+      } else if (!ignore) {
+        setIsWalletAdmin(false);
       }
     };
-    checkWalletAdmin();
-    return () => { ignore = true; };
-  }, [isWeb3LoggedIn, web3User]);
+    
+    // Délai pour éviter les appels trop fréquents
+    const timer = setTimeout(checkWalletAdmin, 500);
+    
+    return () => {
+      ignore = true;
+      clearTimeout(timer);
+    };
+  }, [isWeb3LoggedIn, web3User?.walletAddress, isClassicLoggedIn, classicUser?.role]);
 
   // Déconnexion complète
   const handleLogout = async () => {
@@ -106,12 +128,11 @@ export const Navbar: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWall
 
   // Affichage info utilisateur
   let userInfo = null;
-  // Section admin si :
-  // - user classique connecté ET admin
-  // - OU wallet connecté ET walletAddress du user classique admin === walletAddress du wallet connecté
-  const isAdmin = (
-    (isClassicLoggedIn && classicUser && classicUser.role === 'ADMIN') ||
-    isWalletAdmin
+  // L'utilisateur est admin s'il est connecté en tant qu'admin via l'authentification classique
+  // OU s'il est connecté avec un wallet admin
+  const isAdmin = Boolean(
+    (isClassicLoggedIn && classicUser?.role === 'ADMIN') ||
+    (isWeb3LoggedIn && isWalletAdmin)
   );
   if (isClassicLoggedIn && classicUser) {
     userInfo = (
@@ -157,15 +178,15 @@ export const Navbar: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWall
         })}
         {isAdmin && (
           <Link
-            to="/admin-proofs"
+            to="/app/admin/proofs"
             className={`flex items-center gap-3 px-3 py-3 rounded-xl font-semibold text-base transition-all duration-150 w-full group
-              ${isActive('/admin-proofs')
+              ${isActive('/app/admin/proofs')
                 ? 'bg-primary-light text-primary shadow-md scale-105'
                 : 'text-secondary hover:bg-surface-secondary hover:text-primary'}
             `}
           >
-            <ArchiveBoxIcon className={`w-6 h-6 ${isActive('/admin-proofs') ? 'text-primary' : 'text-secondary group-hover:text-primary'}`} />
-            <span>Archives Preuves (Admin)</span>
+            <ArchiveBoxIcon className={`w-6 h-6 ${isActive('/app/admin/proofs') ? 'text-primary' : 'text-secondary group-hover:text-primary'}`} />
+            <span>Archives Preuves</span>
           </Link>
         )}
       </nav>
