@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { register as registerApi } from '../api/auth';
+import { SocialAuthButtons } from './SocialAuthButtons';
+import { PasswordInput } from './PasswordInput';
 
 interface ClassicRegisterModalProps {
   isOpen: boolean;
@@ -79,23 +81,21 @@ export const ClassicRegisterModal: React.FC<ClassicRegisterModalProps> = ({ isOp
             required
             autoComplete="username"
           />
-          <input
-            type="password"
-            className="border rounded-xl px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          <PasswordInput
             placeholder="Mot de passe"
             value={password}
             onChange={e => setPassword(e.target.value)}
             required
             autoComplete="new-password"
+            error={error}
           />
-          <input
-            type="password"
-            className="border rounded-xl px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          <PasswordInput
             placeholder="Confirmer le mot de passe"
             value={confirmPassword}
             onChange={e => setConfirmPassword(e.target.value)}
             required
             autoComplete="new-password"
+            error={password && confirmPassword && password !== confirmPassword ? 'Les mots de passe ne correspondent pas' : undefined}
           />
           {error && <div className="text-red-500 text-sm text-center">{error}</div>}
           {success && <div className="text-green-600 text-sm text-center">Compte créé avec succès !</div>}
@@ -112,16 +112,7 @@ export const ClassicRegisterModal: React.FC<ClassicRegisterModalProps> = ({ isOp
           <span className="text-gray-400 text-sm">ou</span>
           <span className="h-px w-8 bg-gray-200" />
         </div>
-        <div className="flex flex-col gap-3">
-          <button className="flex items-center justify-center gap-2 border border-gray-200 rounded-xl py-3 font-semibold hover:bg-gray-50 transition-colors">
-            <img src="/google.svg" alt="Google" className="w-5 h-5" />
-            S'inscrire avec Google
-          </button>
-          <button className="flex items-center justify-center gap-2 border border-gray-200 rounded-xl py-3 font-semibold hover:bg-gray-50 transition-colors">
-            <img src="/apple.svg" alt="Apple" className="w-5 h-5" />
-            S'inscrire avec Apple
-          </button>
-        </div>
+        <SocialAuthButtons variant="register" />
         <div className="mt-6 text-center text-sm text-gray-500">
           Déjà un compte ?{' '}
           <button onClick={onSwitchToLogin} className="text-blue-600 hover:underline font-semibold">Se connecter</button>
