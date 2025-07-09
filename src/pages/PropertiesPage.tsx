@@ -256,7 +256,11 @@ export const PropertiesPage: React.FC = () => {
                 key={property.id}
                 className="card-shadow rounded-3xl overflow-hidden hover:scale-105 transition-all duration-300 cursor-pointer"
                 style={{ animationDelay: `${idx * 60}ms` }}
-                onClick={() => navigate(`/properties/${property.id}`)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  navigate(`/app/properties/${property.id}`);
+                }}
               >
                 {/* Image */}
                 <div className="relative h-48 overflow-hidden">

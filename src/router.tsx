@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { HomePage } from './pages/HomePage';
 import { AuthPage } from './pages/AuthPage';
 import { DashboardPage } from './pages/DashboardPage';
@@ -21,58 +21,89 @@ import { PropertyDetailPage } from './pages/PropertyDetailPage';
 import MyReservationsPage from './pages/MyReservationsPage';
 import { FavoritesPage } from './pages/FavoritesPage';
 import WalletCallbackPage from './pages/WalletCallbackPage';
-import { UnlockPage } from './pages/UnlockPage';
 import { AdminProofsPage } from './pages/AdminProofsPage';
+
+// Composant pour le layout protégé
+const ProtectedLayout: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWalletModal }) => {
+  return (
+    <div className="flex w-full min-h-screen">
+      <Navbar onOpenWalletModal={onOpenWalletModal} />
+      <MobileNavbar />
+      <div className="flex-1 flex flex-col min-h-screen transition-all duration-300 md:ml-64 pt-16 md:pt-0">
+        <Outlet />
+      </div>
+    </div>
+  );
+};
+
+// Composant pour le layout public
+const PublicLayout = () => (
+  <Routes>
+    <Route path="/" element={
+      <PublicRoute>
+        <HomePage />
+      </PublicRoute>
+    } />
+    <Route path="/auth" element={
+      <PublicRoute>
+        <AuthPage />
+      </PublicRoute>
+    } />
+    <Route path="/login" element={
+      <PublicRoute>
+        <AuthPage />
+      </PublicRoute>
+    } />
+    <Route path="/wallet-callback" element={
+      <PublicRoute>
+        <WalletCallbackPage />
+      </PublicRoute>
+    } />
+    <Route path="*" element={<Navigate to="/" replace />} />
+  </Routes>
+);
 
 const AppRouter: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWalletModal }) => {
   return (
     <Routes>
-      {/* Routes publiques (sans navbar) */}
-      <Route path="/auth" element={<AuthPage />} />
-      <Route path="/login" element={<AuthPage />} />
-      <Route path="/wallet-callback" element={<WalletCallbackPage />} />
-      
-      {/* Page de connexion MultiversX unifiée */}
-      <Route path="/unlock" element={<UnlockPage />} />
-      
-      <Route path="/" element={
-        <PublicRoute>
-          <HomePage />
-        </PublicRoute>
-      } />
-      
-      {/* Routes privées (avec navbar) */}
-      <Route path="/*" element={
-        <div className="flex w-full min-h-screen">
-          {/* Navigation Desktop */}
-          <Navbar onOpenWalletModal={onOpenWalletModal} />
-          
-          {/* Navigation Mobile */}
-          <MobileNavbar />
-          
-          <div className="flex-1 flex flex-col min-h-screen transition-all duration-300 md:ml-64 pt-16 md:pt-0">
-            <Routes>
-              <Route element={<PrivateRoute />}> 
-                <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/add-proof" element={<AddProofPage />} />
-                <Route path="/proof/:id" element={<ProofDetailPage />} />
-                <Route path="/share/:shareToken" element={<SharePage />} />
-                <Route path="/proofs" element={<ProofsPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/properties" element={<PropertiesPage />} />
-                <Route path="/add-property" element={<AddPropertyPage />} />
-                <Route path="/rentals" element={<RentalsPage />} />
-                <Route path="/my-reservations" element={<MyReservationsPage />} />
-                <Route path="/favorites" element={<FavoritesPage />} />
-                <Route path="/properties/:propertyId/proofs" element={<PropertyProofsPage />} />
-                <Route path="/add-property-proof/:propertyId" element={<AddPropertyProofPage />} />
-                <Route path="/properties/:id" element={<PropertyDetailPage />} />
-                <Route path="/admin-proofs" element={<AdminProofsPage />} />
-              </Route>
-            </Routes>
-          </div>
-        </div>
-      } />
+      <Route path="/app" element={
+        <PrivateRoute>
+          <ProtectedLayout onOpenWalletModal={onOpenWalletModal} />
+        </PrivateRoute>
+      }>
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="add-proof" element={<AddProofPage />} />
+        <Route path="proof/:id" element={<ProofDetailPage />} />
+        <Route path="share/:shareToken" element={<SharePage />} />
+        <Route path="proofs" element={<ProofsPage />} />
+        <Route path="profile" element={<ProfilePage />} />
+        <Route path="properties" element={<PropertiesPage />} />
+        <Route path="properties/:id" element={<PropertyDetailPage />} />
+        <Route path="add-property" element={<AddPropertyPage />} />
+        <Route path="rentals" element={<RentalsPage />} />
+        <Route path="my-reservations" element={<MyReservationsPage />} />
+        <Route path="favorites" element={<FavoritesPage />} />
+        <Route path="properties/:propertyId/proofs" element={<PropertyProofsPage />} />
+        <Route path="add-property-proof/:propertyId" element={<AddPropertyProofPage />} />
+        <Route path="admin/proofs" element={
+          <PrivateRoute adminOnly={true}>
+            <AdminProofsPage />
+          </PrivateRoute>
+        } />
+        <Route path="admin/users" element={
+          <PrivateRoute adminOnly={true}>
+            <div>Admin Users - Page en construction</div>
+          </PrivateRoute>
+        } />
+        <Route path="admin-proofs" element={
+          <PrivateRoute adminOnly={true}>
+            <AdminProofsPage />
+          </PrivateRoute>
+        } />
+        <Route path="*" element={<Navigate to="dashboard" replace />} />
+      </Route>
+      <Route path="/*" element={<PublicLayout />} />
     </Routes>
   );
 };

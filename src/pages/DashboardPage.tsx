@@ -234,7 +234,7 @@ interface SearchFilters {
   destination: string;
   checkinDate: Date | null;
   checkoutDate: Date | null;
-  guests: string;
+  guests?: string;
 }
 
 // Composant barre de recherche moderne
@@ -275,10 +275,6 @@ const SearchBar: React.FC<{
     setSearchFilters(prev => ({ ...prev, destination: e.target.value }));
   };
 
-  const handleGuestsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchFilters(prev => ({ ...prev, guests: e.target.value }));
-  };
-
   const handleSearchClick = () => {
     onSearch();
     setShowCalendar(null);
@@ -286,7 +282,7 @@ const SearchBar: React.FC<{
 
   return (
     <div className="relative">
-      <div className="bg-white rounded-full shadow-lg border border-gray-200 p-2">
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-2">
         <div className="flex flex-col md:flex-row md:divide-x divide-gray-200">
           {/* Destination */}
           <div className="flex-1 px-6 py-4">
@@ -334,23 +330,7 @@ const SearchBar: React.FC<{
             </div>
           </div>
 
-          {/* Voyageurs */}
-          <div className="flex-1 px-6 py-4">
-            <div className="text-left">
-              <label className="text-xs font-semibold text-gray-900 uppercase tracking-wide">
-                Voyageurs
-              </label>
-              <input
-                type="text"
-                placeholder="Ajouter des voyageurs"
-                value={searchFilters.guests}
-                onChange={handleGuestsChange}
-                className="w-full text-sm text-gray-600 placeholder-gray-400 bg-transparent border-0 focus:outline-none mt-1"
-              />
-            </div>
-          </div>
-
-          {/* Bouton de recherche */}
+{/* Bouton de recherche */}
           <div className="flex items-center justify-center px-2">
             {isSearchActive ? (
               <button 
@@ -622,8 +602,11 @@ const PropertyCard: React.FC<{ property: Property }> = ({ property }) => {
   
   return (
     <Link 
-      to={`/properties/${property.id}`}
+      to={`/app/properties/${property.id}`}
       className="group block bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300"
+      onClick={(e) => {
+        e.stopPropagation();
+      }}
     >
       {/* Image */}
       <div className="relative h-48 bg-gray-200 overflow-hidden">

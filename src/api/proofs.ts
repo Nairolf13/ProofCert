@@ -67,6 +67,14 @@ export const proofsApi = {
       throw new Error(getErrorMessage(error, 'Failed to update transaction hash'));
     }
   },
+  update: async (id: string, updates: Partial<Proof>): Promise<Proof> => {
+    try {
+      const response = await api.patch(`/proofs/${id}`, updates);
+      return response.data;
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Failed to update proof'));
+    }
+  },
   updateIpfsHash: async (id: string, ipfsHash: string): Promise<Proof> => {
     try {
       const response = await api.patch(`/proofs/${id}`, { ipfsHash });

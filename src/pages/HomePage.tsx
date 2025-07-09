@@ -1,6 +1,5 @@
 import React from 'react';
 import { ImmersiveLayout } from '../components/ImmersiveLayout';
-import { Button } from '../components/Button';
 import { useMultiversXAuth } from '../hooks/useMultiversXAuth';
 import { Link } from 'react-router-dom';
 import { 
@@ -16,8 +15,9 @@ import {
   ArrowRightIcon,
   UserIcon,
   HomeIcon,
-  
+  ChevronDownIcon,
 } from '@heroicons/react/24/outline';
+import { Menu, Transition } from '@headlessui/react';
 import { ModalConnectWallet } from '../components/ModalConnectWallet';
 import { ClassicLoginModal } from '../components/ClassicLoginModal';
 import { ClassicRegisterModal } from '../components/ClassicRegisterModal';
@@ -70,34 +70,62 @@ export const HomePage: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <Link
-                    to="/auth?mode=register"
+                  <button
+                    onClick={() => setShowClassicRegister(true)}
                     className="group bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:text-white px-8 py-4 rounded-2xl text-lg font-semibold hover:shadow-2xl transform hover:scale-105 transition-all duration-300 flex items-center gap-2"
                   >
-                    Commencer gratuitement
+                    Créer un compte
                     <ArrowRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </Link>
-                  <button
-                    type="button"
-                    className="border-2 border-blue-600 text-blue-600 px-8 py-4 rounded-2xl text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 no-underline"
-                    onClick={() => setShowConnectModal(true)}
-                  >
-                    Se connecter avec MultiversX
                   </button>
-                  <button
-                    type="button"
-                    className="border-2 border-gray-400 text-gray-700 px-8 py-4 rounded-2xl text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 no-underline"
-                    onClick={() => setShowClassicLogin(true)}
-                  >
-                    Connexion classique
-                  </button>
-                  <button
-                    type="button"
-                    className="border-2 border-gray-400 text-gray-700 px-8 py-4 rounded-2xl text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 no-underline"
-                    onClick={() => setShowClassicRegister(true)}
-                  >
-                    Inscription classique
-                  </button>
+                  <Menu as="div" className="relative">
+                    <Menu.Button
+                      className="border-2 border-blue-600 text-blue-600 px-8 py-4 rounded-2xl text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center gap-2"
+                    >
+                      Se connecter
+                      <ChevronDownIcon className="w-5 h-5" />
+                    </Menu.Button>
+
+                    <Transition
+                      as={React.Fragment}
+                      enter="transition ease-out duration-100"
+                      enterFrom="transform opacity-0 scale-95"
+                      enterTo="transform opacity-100 scale-100"
+                      leave="transition ease-in duration-75"
+                      leaveFrom="transform opacity-100 scale-100"
+                      leaveTo="transform opacity-0 scale-95"
+                    >
+                      <Menu.Items className="absolute right-0 mt-2 w-64 origin-top-right divide-y divide-gray-100 rounded-xl bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+                        <div className="px-1 py-2">
+                          <Menu.Item>
+                            {({ active }) => (
+                              <button
+                                onClick={() => setShowConnectModal(true)}
+                                className={`${
+                                  active ? 'bg-blue-50 text-blue-600' : 'text-gray-900'
+                                } group flex w-full items-center rounded-lg px-4 py-3 text-sm font-medium`}
+                              >
+                                <CubeTransparentIcon className="mr-3 h-5 w-5 text-blue-500" />
+                                Se connecter avec MultiversX
+                              </button>
+                            )}
+                          </Menu.Item>
+                          <Menu.Item>
+                            {({ active }) => (
+                              <button
+                                onClick={() => setShowClassicLogin(true)}
+                                className={`${
+                                  active ? 'bg-blue-50 text-blue-600' : 'text-gray-900'
+                                } group flex w-full items-center rounded-lg px-4 py-3 text-sm font-medium`}
+                              >
+                                <UserIcon className="mr-3 h-5 w-5 text-gray-500" />
+                                Connexion classique
+                              </button>
+                            )}
+                          </Menu.Item>
+                        </div>
+                      </Menu.Items>
+                    </Transition>
+                  </Menu>
                 </>
               )}
             </div>
@@ -308,9 +336,12 @@ export const HomePage: React.FC = () => {
               <p className="text-blue-100 mb-6">
                 Rejoignez la plateforme qui met la technologie blockchain au service de l'immobilier locatif.
               </p>
-              <Button size="lg" variant="secondary" className="bg-white text-blue-600 hover:bg-gray-100">
+              <button 
+                onClick={() => setShowClassicRegister(true)}
+                className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-3 rounded-2xl text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300"
+              >
                 Commencer maintenant
-              </Button>
+              </button>
             </div>
           </div>
         </section>
@@ -416,12 +447,12 @@ export const HomePage: React.FC = () => {
                 Rejoignez les utilisateurs qui font confiance à ProofEstate pour sécuriser leurs locations et éviter les conflits.
               </p>
               <div className="flex justify-center">
-                <Link 
-                  to="/auth?mode=register" 
+                <button 
+                  onClick={() => setShowClassicRegister(true)}
                   className="bg-white text-indigo-700 px-8 py-4 rounded-2xl text-lg font-bold hover:shadow-lg transform hover:scale-105 transition-all duration-300"
                 >
                   Commencer maintenant
-                </Link>
+                </button>
               </div>
             </div>
           </section>

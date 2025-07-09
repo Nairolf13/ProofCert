@@ -2,6 +2,8 @@ import React, { useState, useContext } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../hooks/AuthContext';
+import { SocialAuthButtons } from './SocialAuthButtons';
+import { PasswordInput } from './PasswordInput';
 
 interface ClassicLoginModalProps {
   isOpen: boolean;
@@ -58,14 +60,13 @@ export const ClassicLoginModal: React.FC<ClassicLoginModalProps> = ({ isOpen, on
             required
             autoComplete="username"
           />
-          <input
-            type="password"
-            className="border rounded-xl px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          <PasswordInput
             placeholder="Mot de passe"
             value={password}
             onChange={e => setPassword(e.target.value)}
             required
             autoComplete="current-password"
+            error={error}
           />
           {error && <div className="text-red-500 text-sm text-center">{error}</div>}
           <button
@@ -81,16 +82,7 @@ export const ClassicLoginModal: React.FC<ClassicLoginModalProps> = ({ isOpen, on
           <span className="text-gray-400 text-sm">ou</span>
           <span className="h-px w-8 bg-gray-200" />
         </div>
-        <div className="flex flex-col gap-3">
-          <button className="flex items-center justify-center gap-2 border border-gray-200 rounded-xl py-3 font-semibold hover:bg-gray-50 transition-colors">
-            <img src="/google.svg" alt="Google" className="w-5 h-5" />
-            Connexion avec Google
-          </button>
-          <button className="flex items-center justify-center gap-2 border border-gray-200 rounded-xl py-3 font-semibold hover:bg-gray-50 transition-colors">
-            <img src="/apple.svg" alt="Apple" className="w-5 h-5" />
-            Connexion avec Apple
-          </button>
-        </div>
+        <SocialAuthButtons variant="login" />
         <div className="mt-6 text-center text-sm text-gray-500">
           Pas encore de compte ?{' '}
           <button onClick={onSwitchToRegister} className="text-blue-600 hover:underline font-semibold">Créer un compte</button>

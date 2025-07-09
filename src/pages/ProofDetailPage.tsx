@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import type { Proof } from '../types';
 import { proofsApi } from '../api/proofs';
 import { Button } from '../components/Button';
+import { Input } from '../components/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { formatDateTime } from '../utils/helpers';
 import { generateQRCode, downloadQRCode } from '../utils/qrcode';
@@ -17,45 +18,87 @@ import {
   CloudIcon,
   GlobeAltIcon,
   ArrowTopRightOnSquareIcon,
+  PencilIcon,
 } from '@heroicons/react/24/outline';
 
 export const ProofDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [proof, setProof] = useState<Proof | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editableTitle, setEditableTitle] = useState('');
+  const [editableContent, setEditableContent] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [showQRCode, setShowQRCode] = useState(false);
   const [localFileData, setLocalFileData] = useState<string | null>(null);
   const [localFileType, setLocalFileType] = useState<string>('');
   const [localFileName, setLocalFileName] = useState<string>('');
 
-  useEffect(() => {
-    const fetchProof = async () => {
-      if (!id) return;
+  const loadProof = useCallback(async () => {
+    if (!id) return;
+    
+    try {
+      const fetchedProof = await proofsApi.getById(id);
+      setProof(fetchedProof);
+      setEditableTitle(fetchedProof?.title || '');
+      setEditableContent(fetchedProof?.content || '');
       
-      try {
-        const fetchedProof = await proofsApi.getById(id);
-        setProof(fetchedProof);
-        
-        // Récupérer le fichier depuis le localStorage s'il existe
-        const fileData = localStorage.getItem(`proof_file_${id}`);
-        const fileType = localStorage.getItem(`proof_file_type_${id}`);
-        const fileName = localStorage.getItem(`proof_file_name_${id}`);
-        
-        if (fileData) {
-          setLocalFileData(fileData);
-          setLocalFileType(fileType || '');
-          setLocalFileName(fileName || '');
-        }
-      } catch (error) {
-        console.error('Failed to fetch proof:', error);
-      } finally {
-        setIsLoading(false);
+      // Récupérer le fichier depuis le localStorage s'il existe
+      const fileData = localStorage.getItem(`proof_file_${id}`);
+      const fileType = localStorage.getItem(`proof_file_type_${id}`);
+      const fileName = localStorage.getItem(`proof_file_name_${id}`);
+      
+      if (fileData) {
+        setLocalFileData(fileData);
+        setLocalFileType(fileType || '');
+        setLocalFileName(fileName || '');
       }
-    };
-
-    fetchProof();
+    } catch (error) {
+      console.error('Failed to fetch proof:', error);
+    } finally {
+      setIsLoading(false);
+    }
   }, [id]);
+
+  useEffect(() => {
+    loadProof();
+  }, [loadProof]);
+
+  const handleSave = async () => {
+    if (!proof || !id) return;
+    
+    try {
+      setIsSaving(true);
+      console.log('Tentative de mise à jour avec les données:', {
+        title: editableTitle,
+        content: editableContent
+      });
+      
+      const updatedProof = await proofsApi.update(id, {
+        title: editableTitle,
+        content: editableContent
+      });
+      
+      console.log('Réponse du serveur:', updatedProof);
+      setProof(updatedProof);
+      setIsEditing(false);
+      alert('Les modifications ont été enregistrées avec succès');
+    } catch (error) {
+      console.error('Échec de la mise à jour de la preuve:', error);
+      alert(`Erreur lors de la mise à jour de la preuve: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (proof) {
+      setEditableTitle(proof.title || '');
+      setEditableContent(proof.content || '');
+    }
+    setIsEditing(false);
+  };
 
   const handleGenerateQRCode = async () => {
     if (!proof) return;
@@ -113,28 +156,71 @@ export const ProofDetailPage: React.FC = () => {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                {proof.title || `${proof.contentType} Proof`}
-              </h1>
-              <p className="text-gray-600">
-                Created {formatDateTime(proof.timestamp)}
-              </p>
+              {isEditing ? (
+                <div className="space-y-4">
+                  <Input
+                    value={editableTitle}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditableTitle(e.target.value)}
+                    placeholder="Titre de la preuve"
+                    className="text-3xl font-bold"
+                  />
+                  <p className="text-gray-600">
+                    Created {formatDateTime(proof.timestamp)}
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900">
+                    {proof.title || `${proof.contentType} Proof`}
+                  </h1>
+                  <p className="text-gray-600">
+                    Created {formatDateTime(proof.timestamp)}
+                  </p>
+                </div>
+              )}
             </div>
             <div className="flex space-x-3">
-              <Button
-                variant="outline"
-                onClick={handleCopyShareLink}
-                leftIcon={<ShareIcon className="w-4 h-4" />}
-              >
-                Copy Link
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleGenerateQRCode}
-                leftIcon={<QrCodeIcon className="w-4 h-4" />}
-              >
-                QR Code
-              </Button>
+              {isEditing ? (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={handleCancel}
+                    disabled={isSaving}
+                  >
+                    Annuler
+                  </Button>
+                  <Button
+                    onClick={handleSave}
+                    isLoading={isSaving}
+                  >
+                    Enregistrer
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsEditing(true)}
+                    leftIcon={<PencilIcon className="w-4 h-4" />}
+                  >
+                    Modifier
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleCopyShareLink}
+                    leftIcon={<ShareIcon className="w-4 h-4" />}
+                  >
+                    Partager
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleGenerateQRCode}
+                    leftIcon={<QrCodeIcon className="w-4 h-4" />}
+                  >
+                    QR Code
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -149,12 +235,23 @@ export const ProofDetailPage: React.FC = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {proof.contentType === 'TEXT' && proof.content ? (
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <pre className="whitespace-pre-wrap text-sm text-gray-800">
-                      {proof.content}
-                    </pre>
-                  </div>
+                {proof.contentType === 'TEXT' ? (
+                  isEditing ? (
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <textarea
+                        value={editableContent}
+                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditableContent(e.target.value)}
+                        className="w-full h-64 p-2 border rounded"
+                        placeholder="Contenu de la preuve"
+                      />
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <pre className="whitespace-pre-wrap text-sm text-gray-800">
+                        {proof.content}
+                      </pre>
+                    </div>
+                  )
                 ) : proof.contentType === 'IMAGE' && (localFileData || proof.ipfsHash) ? (
                   <div className="bg-gray-50 rounded-lg flex items-center justify-center p-4">
                     <img

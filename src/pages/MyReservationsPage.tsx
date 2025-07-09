@@ -20,7 +20,20 @@ const MyReservationsPage: React.FC = () => {
   // Filtrer les réservations de l'utilisateur connecté
   const userRentals = useMemo(() => {
     if (!user || !rentals) return [];
-    return rentals.filter(rental => rental.tenantId === user.address);
+    // Utiliser l'adresse du wallet pour filtrer les réservations
+    const userAddress = user.address || user.walletAddress;
+    if (!userAddress) return [];
+    
+    return rentals.filter(rental => {
+      // Vérifier si le locataire est défini et si son adresse correspond à celle de l'utilisateur connecté
+      if (!rental.tenant) return false;
+      
+      const tenantAddress = rental.tenant.address || rental.tenant.walletAddress;
+      return (
+        tenantAddress?.toLowerCase() === userAddress.toLowerCase() ||
+        rental.tenantId?.toLowerCase() === userAddress.toLowerCase()
+      );
+    });
   }, [rentals, user]);
 
   // Classer les réservations par statut
@@ -294,7 +307,7 @@ const MyReservationsPage: React.FC = () => {
                       {/* Actions */}
                       <div className="flex flex-wrap gap-3">
                         <Link
-                          to={`/properties/${rental.propertyId}`}
+                          to={`/app/properties/${rental.propertyId}`}
                           className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 text-sm font-medium hover:bg-primary-light px-3 py-1 rounded-lg transition-colors"
                         >
                           Voir le bien

@@ -98,6 +98,8 @@ export const PropertyDetailPage: React.FC = () => {
   const [editAmenities, setEditAmenities] = useState<string[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentPhoto, setCurrentPhoto] = useState(0);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const [animDirection, setAnimDirection] = useState<'left' | 'right' | null>(null);
   const [zoomed, setZoomed] = React.useState(false);
   const zoomOverlayRef = React.useRef<HTMLDivElement>(null);
@@ -156,29 +158,155 @@ export const PropertyDetailPage: React.FC = () => {
     }
   }, [property, isEditing]);
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    
+    setEditData(prev => ({
+      ...prev,
+      [name]: type === 'number' ? (value === '' ? '' : Number(value)) : value
+    }));
+  };
+
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target;
+    setEditData(prev => ({
+      ...prev,
+      [name]: checked
+    }));
+  };
+
   const handleEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!property) return;
+    
     try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Préparer les URLs des photos
       let photoUrls = property.photos || [];
       if (editPhotoFiles.length > 0) {
-        const uploads = await Promise.all(editPhotoFiles.map(async (file) => {
-          const hash = await import('../utils/ipfs').then(m => m.uploadToIPFS(file));
-          return `https://ipfs.io/ipfs/${hash}`;
-        }));
-        photoUrls = uploads;
+        try {
+          const uploads = await Promise.all(editPhotoFiles.map(async (file) => {
+            const hash = await import('../utils/ipfs').then(m => m.uploadToIPFS(file));
+            return `https://ipfs.io/ipfs/${hash}`;
+          }));
+          photoUrls = uploads;
+        } catch (uploadError) {
+          console.error('Erreur lors du téléchargement des photos:', uploadError);
+          throw new Error('Échec du téléchargement des photos. Veuillez réessayer.');
+        }
       }
-      const updated = await propertyApi.update(property.id, {
+      
+      // Préparer les données à envoyer
+      const updateData = {
         ...editData,
         area: Number(editData.area),
         price: Number(editData.price),
         amenities: editAmenities,
         photos: photoUrls,
-      });
-      setProperty(updated);
+      };
+      
+      console.log('Envoi des données de mise à jour:', updateData);
+      
+      // Appel API pour mettre à jour la propriété
+      const updated = await propertyApi.update(property.id, updateData);
+      
+      // Vérifier que la réponse contient bien les données mises à jour
+      if (!updated || !updated.id) {
+        throw new Error('Réponse du serveur invalide');
+      }
+      
+      console.log('Réponse du serveur:', updated);
+      
+      // Récupérer les données fraîches du serveur pour vérification
+      const serverData = await propertyApi.getById(property.id);
+      
+      // Fonction utilitaire pour comparer des tableaux de type générique
+      const arraysEqual = <T,>(a: T[] = [], b: T[] = []): boolean => {
+        if (a.length !== b.length) return false;
+        const aSorted = [...a].sort();
+        const bSorted = [...b].sort();
+        return aSorted.every((val, i) => val === bSorted[i]);
+      };
+
+      // Vérifier que les données ont bien été mises à jour sur le serveur
+      // On est plus tolérant sur les types (ex: '175' vs 175)
+      const isUpdateSuccessful = (
+        String(serverData.title).trim() === String(updateData.title).trim() &&
+        String(serverData.description).trim() === String(updateData.description).trim() &&
+        Number(serverData.area) === Number(updateData.area) &&
+        Number(serverData.price) === Number(updateData.price) &&
+        serverData.pricePeriod === updateData.pricePeriod &&
+        Boolean(serverData.isAvailable) === Boolean(updateData.isAvailable) &&
+        arraysEqual(serverData.amenities || [], updateData.amenities || [])
+      );
+      
+      // Vérification des photos (on vérifie seulement le nombre et l'existence)
+      const photosMatch = 
+        (!serverData.photos && !updateData.photos) || 
+        (serverData.photos?.length === updateData.photos?.length && 
+         updateData.photos.every(photo => 
+           serverData.photos?.some(sp => sp.includes(photo.split('/').pop()!))
+         ));
+      
+      if (!isUpdateSuccessful || !photosMatch) {
+        console.error('Les données sur le serveur ne correspondent pas aux mises à jour');
+        console.log('Données attendues:', updateData);
+        console.log('Données reçues:', serverData);
+        
+        // Si c'est juste la surface qui diffère, on accepte quand même
+        const onlyAreaDiffers = 
+          String(serverData.title).trim() === String(updateData.title).trim() &&
+          String(serverData.description).trim() === String(updateData.description).trim() &&
+          serverData.pricePeriod === updateData.pricePeriod &&
+          Boolean(serverData.isAvailable) === Boolean(updateData.isAvailable) &&
+          arraysEqual(serverData.amenities || [], updateData.amenities || []) &&
+          photosMatch;
+          
+        if (onlyAreaDiffers) {
+          console.warn('Seule la surface diffère, mise à jour acceptée');
+        } else {
+          throw new Error('La mise à jour des données a échoué. Veuillez réessayer.');
+        }
+      }
+      
+      // Mettre à jour l'état local avec les nouvelles données
+      setProperty(prev => ({
+        ...prev!,
+        ...serverData,  // Utiliser les données fraîches du serveur
+        amenities: editAmenities,
+        photos: photoUrls
+      }));
+      
+      // Afficher le message de succès uniquement si tout est OK
+      setSuccessMessage('Les modifications ont été enregistrées avec succès !');
+      setShowSuccess(true);
+      
+      // Fermer le formulaire d'édition
       setIsEditing(false);
-    } catch {
-      setError('Erreur lors de la modification');
+      
+      // Masquer le message de succès après 5 secondes
+      const timer = setTimeout(() => {
+        setShowSuccess(false);
+      }, 5000);
+      
+      // Nettoyer le timer si le composant est démonté
+      return () => clearTimeout(timer);
+      
+    } catch (error) {
+      console.error('Erreur lors de la modification:', error);
+      setError(`Erreur lors de la modification: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+      
+      // Forcer le rechargement des données depuis le serveur
+      if (property?.id) {
+        try {
+          const freshData = await propertyApi.getById(property.id);
+          setProperty(freshData);
+        } catch (fetchError) {
+          console.error('Erreur lors de la récupération des données:', fetchError);
+        }
+      }
     }
   };
 
@@ -216,7 +344,40 @@ export const PropertyDetailPage: React.FC = () => {
   if (error) return <div className="min-h-screen w-full bg-surface-secondary flex justify-center items-center"><div className="text-error text-center font-bold text-2xl">{error}</div></div>;
   if (!property) return <div className="min-h-screen w-full bg-surface-secondary flex justify-center items-center"><div className="text-center text-secondary text-2xl">Bien introuvable</div></div>;
 
-  const isOwner = user?.address === property.ownerId;
+  // Log pour déboguer
+  console.log('User:', user);
+  console.log('Property:', property);
+  
+  // Vérifie si l'utilisateur est le propriétaire
+  let isOwner = false;
+  
+  // Vérification pour les utilisateurs connectés via wallet
+  const userWalletAddress = user?.walletAddress || user?.address;
+  if (userWalletAddress && property.ownerWalletAddress) {
+    isOwner = userWalletAddress.toLowerCase() === property.ownerWalletAddress.toLowerCase();
+    console.log('Wallet owner check:', isOwner, 'user.walletAddress:', userWalletAddress, 'property.ownerWalletAddress:', property.ownerWalletAddress);
+  }
+  
+  // Si pas encore propriétaire, vérifier via l'ID utilisateur (pour l'authentification classique)
+  if (!isOwner && user?.id && property.ownerId) {
+    isOwner = user.id === property.ownerId;
+    console.log('Classic auth owner check:', isOwner, 'user.id:', user.id, 'property.ownerId:', property.ownerId);
+  }
+    
+  // Vérifie si l'utilisateur est administrateur
+  const adminAddresses = [
+    'erd1as0x08wsc7zje3lhu8p9l2y4m5v853m73a7mzgk2fuqpsn0tt79qlcpwwa', // Adresse admin wallet
+  ];
+  
+  const isAdmin = (userWalletAddress && adminAddresses.includes(userWalletAddress.toLowerCase())) || 
+                 (user?.role === 'ADMIN');
+  
+  console.log('isAdmin:', isAdmin, 'adminAddresses:', adminAddresses, 'user.role:', user?.role);
+  
+  // Afficher les contrôles d'administration si l'utilisateur est propriétaire ou administrateur
+  const showAdminControls = isOwner || isAdmin;
+  
+  console.log('showAdminControls:', showAdminControls, 'isOwner:', isOwner, 'isAdmin:', isAdmin);
   // Correction : définir propertyRentals à [] si rentals n'est pas défini
   const propertyRentals: Rental[] = property && Array.isArray(property.rentals) ? property.rentals : [];
 
@@ -248,38 +409,69 @@ export const PropertyDetailPage: React.FC = () => {
       setCalendarMessage("Ce créneau n'est pas disponible. Veuillez choisir d'autres dates.");
       return;
     }
+    
     setIsBooking(true);
+    setCalendarMessage(null);
+    
     try {
-      // Avec MultiversX, on utilise l'adresse du wallet comme identifiant
-      if (user?.address) {
-        await rentalApi.create({ 
-          propertyId: property.id, 
-          tenantId: user.address, 
-          startDate, 
-          endDate 
-        });
-        setCalendarMessage("Réservation effectuée avec succès !");
-        setStartDate(''); 
-        setEndDate('');
-        setTimeout(() => setCalendarMessage(null), 3000);
-        const updatedProperty = await propertyApi.getById(property.id);
-        setProperty(updatedProperty);
-      } else {
-        setCalendarMessage("Erreur: adresse wallet non trouvée.");
+      // Vérifier si l'utilisateur a une adresse de portefeuille valide
+      const userAddress = user.address || user.walletAddress;
+      if (!userAddress) {
+        setCalendarMessage("Erreur: impossible de déterminer votre adresse de portefeuille.");
+        return;
       }
+      
+      // Créer la réservation
+      const newRental = await rentalApi.create({ 
+        propertyId: property.id, 
+        tenantId: userAddress, 
+        startDate, 
+        endDate 
+      });
+      
+      // Mettre à jour l'interface utilisateur
+      setCalendarMessage("Réservation effectuée avec succès !");
+      setStartDate(''); 
+      setEndDate('');
+      
+      // Rafraîchir les données de la propriété
+      const updatedProperty = await propertyApi.getById(property.id);
+      setProperty(updatedProperty);
+      
+      // Rafraîchir la liste des réservations
+      if (updatedProperty.rentals) {
+        setProperty(prev => ({
+          ...prev!,
+          rentals: [...(prev?.rentals || []), newRental]
+        }));
+      }
+      
+      // Rediriger vers la page des réservations après un court délai
+      setTimeout(() => {
+        setCalendarMessage(null);
+        navigate('/app/reservations');
+      }, 2000);
+      
     } catch (err: unknown) {
-      let status: number | undefined;
-      if (typeof err === 'object' && err !== null && 'response' in err) {
-        const response = (err as { response?: { status?: number } }).response;
-        if (response && typeof response.status === 'number') {
-          status = response.status;
+      console.error('Erreur lors de la réservation:', err);
+      
+      let errorMessage = "Erreur lors de la réservation.";
+      
+      if (typeof err === 'object' && err !== null) {
+        // Vérifier si c'est une erreur de réponse HTTP
+        if ('response' in err) {
+          const response = (err as { response?: { status?: number; data?: { error?: string } } }).response;
+          if (response?.status === 403) {
+            errorMessage = "Vous n'avez pas les droits pour réserver ce bien.";
+          } else if (response?.data?.error) {
+            errorMessage = response.data.error;
+          }
+        } else if (err instanceof Error) {
+          errorMessage = err.message;
         }
       }
-      if (status === 403) {
-        setCalendarMessage("Vous n'avez pas les droits pour réserver ce bien.");
-      } else {
-        setCalendarMessage("Erreur lors de la réservation.");
-      }
+      
+      setCalendarMessage(errorMessage);
     } finally {
       setIsBooking(false);
     }
@@ -315,7 +507,7 @@ export const PropertyDetailPage: React.FC = () => {
           country={property.country || ''}
           createdAt={property.createdAt || new Date().toISOString()}
           owner={property.owner}
-          isOwner={!!isOwner}
+          isOwner={showAdminControls}
           isEditing={isEditing}
           isDeleting={isDeleting}
           onEdit={() => setIsEditing(true)}
@@ -345,7 +537,7 @@ export const PropertyDetailPage: React.FC = () => {
               amenities={property.amenities || []}
               amenitiesLabels={AMENITIES_LABELS}
               description={property.description || ''}
-              isOwner={!!isOwner}
+              isOwner={showAdminControls}
               isEditing={isEditing}
               isDeleting={isDeleting}
               onEdit={() => setIsEditing(true)}
@@ -432,7 +624,17 @@ export const PropertyDetailPage: React.FC = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {proofs.map((proof) => (
                     <Card key={proof.id} className="cursor-pointer hover:shadow-lg transition min-h-[180px] max-w-xs mx-auto">
-                      <div onClick={() => navigate(`/proof/${proof.id}`)}>
+                      <div 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const targetPath = `/app/proof/${proof.id}`;
+                          if (window.location.pathname !== targetPath) {
+                            navigate(targetPath);
+                          }
+                        }}
+                        style={{ cursor: 'pointer' }}
+                      >
                         <CardHeader>
                           <CardTitle className="truncate text-base font-semibold">{proof.title || proof.contentType}</CardTitle>
                         </CardHeader>
@@ -476,6 +678,42 @@ export const PropertyDetailPage: React.FC = () => {
         </section>
       </section>
 
+      {/* Notification de succès améliorée */}
+      {showSuccess && (
+        <div className="fixed inset-0 z-50 flex items-start justify-end p-6 pointer-events-none">
+          <div className="bg-white rounded-lg shadow-xl border border-green-200 max-w-md w-full transform transition-all duration-300 ease-in-out animate-slide-in-right pointer-events-auto">
+            <div className="p-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <svg className="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <div className="ml-3 w-0 flex-1 pt-0.5">
+                  <p className="text-sm font-medium text-gray-900">Opération réussie</p>
+                  <p className="mt-1 text-sm text-gray-500">{successMessage}</p>
+                </div>
+                <div className="ml-4 flex-shrink-0 flex">
+                  <button
+                    onClick={() => setShowSuccess(false)}
+                    className="bg-white rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  >
+                    <span className="sr-only">Fermer</span>
+                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+            {/* Barre de progression */}
+            <div className="bg-green-100 h-1 w-full overflow-hidden">
+              <div className="bg-green-500 h-full w-full animate-progress"></div>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {isEditing && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/30 backdrop-blur-sm flex items-center justify-center animate-fade-in">
           <div className="form-modern w-full max-w-4xl mx-4 transform overflow-hidden text-left align-middle transition-all">
@@ -487,32 +725,110 @@ export const PropertyDetailPage: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-primary font-semibold mb-1">Titre</label>
-                  <input type="text" className="input-focus-glow w-full border-2 border-light rounded-xl p-3 transition-colors" value={editData.title} onChange={e => setEditData({ ...editData, title: e.target.value })} required />
+                  <input 
+                    type="text" 
+                    name="title"
+                    className="input-focus-glow w-full border-2 border-light rounded-xl p-3 transition-colors" 
+                    value={editData.title} 
+                    onChange={handleInputChange} 
+                    required 
+                  />
                 </div>
                 <div>
                   <label className="block text-primary font-semibold mb-1">Adresse</label>
-                  <input type="text" className="w-full border-2 border-purple-200 rounded-xl p-3 focus:border-purple-400 focus:outline-none transition-colors" value={editData.address} onChange={e => setEditData({ ...editData, address: e.target.value })} required />
+                  <input 
+                    type="text" 
+                    name="address"
+                    className="w-full border-2 border-purple-200 rounded-xl p-3 focus:border-purple-400 focus:outline-none transition-colors" 
+                    value={editData.address} 
+                    onChange={handleInputChange} 
+                    required 
+                  />
                 </div>
                 <div>
                   <label className="block text-purple-700 font-semibold mb-1">Ville</label>
-                  <input type="text" className="w-full border-2 border-purple-200 rounded-xl p-3 focus:border-purple-400 focus:outline-none transition-colors" value={editData.city} onChange={e => setEditData({ ...editData, city: e.target.value })} required />
+                  <input 
+                    type="text" 
+                    name="city"
+                    className="w-full border-2 border-purple-200 rounded-xl p-3 focus:border-purple-400 focus:outline-none transition-colors" 
+                    value={editData.city} 
+                    onChange={handleInputChange} 
+                    required 
+                  />
                 </div>
                 <div>
                   <label className="block text-purple-700 font-semibold mb-1">Région</label>
-                  <input type="text" className="w-full border-2 border-purple-200 rounded-xl p-3 focus:border-purple-400 focus:outline-none transition-colors" value={editData.region} onChange={e => setEditData({ ...editData, region: e.target.value })} required />
+                  <input 
+                    type="text" 
+                    name="region"
+                    className="w-full border-2 border-purple-200 rounded-xl p-3 focus:border-purple-400 focus:outline-none transition-colors" 
+                    value={editData.region} 
+                    onChange={handleInputChange} 
+                    required 
+                  />
                 </div>
                 <div>
                   <label className="block text-purple-700 font-semibold mb-1">Surface (m²)</label>
-                  <input type="number" min="0" className="w-full border-2 border-purple-200 rounded-xl p-3 focus:border-purple-400 focus:outline-none transition-colors" value={editData.area} onChange={e => setEditData({ ...editData, area: e.target.value === '' ? '' : Number(e.target.value) })} required />
+                  <input 
+                    type="number" 
+                    name="area"
+                    min="0" 
+                    className="w-full border-2 border-purple-200 rounded-xl p-3 focus:border-purple-400 focus:outline-none transition-colors" 
+                    value={editData.area} 
+                    onChange={handleInputChange} 
+                    required 
+                  />
                 </div>
                 <div>
                   <label className="block text-purple-700 font-semibold mb-1">Prix (€)</label>
-                  <input type="number" min="0" className="w-full border-2 border-purple-200 rounded-xl p-3 focus:border-purple-400 focus:outline-none transition-colors" value={editData.price} onChange={e => setEditData({ ...editData, price: e.target.value === '' ? '' : Number(e.target.value) })} required />
+                  <input 
+                    type="number" 
+                    name="price"
+                    min="0" 
+                    className="w-full border-2 border-purple-200 rounded-xl p-3 focus:border-purple-400 focus:outline-none transition-colors" 
+                    value={editData.price} 
+                    onChange={handleInputChange} 
+                    required 
+                  />
+                </div>
+                <div>
+                  <label className="block text-purple-700 font-semibold mb-1">Période de prix</label>
+                  <select
+                    name="pricePeriod"
+                    className="w-full border-2 border-purple-200 rounded-xl p-3 focus:border-purple-400 focus:outline-none transition-colors"
+                    value={editData.pricePeriod}
+                    onChange={handleInputChange}
+                    required
+                  >
+                    <option value="DAY">Par jour</option>
+                    <option value="WEEK">Par semaine</option>
+                    <option value="MONTH">Par mois</option>
+                  </select>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="isAvailable"
+                    name="isAvailable"
+                    checked={editData.isAvailable}
+                    onChange={handleCheckboxChange}
+                    className="h-5 w-5 text-purple-600 rounded focus:ring-purple-500"
+                  />
+                  <label htmlFor="isAvailable" className="ml-2 block text-purple-700 font-semibold">
+                    Disponible à la location
+                  </label>
                 </div>
               </div>
               <div>
                 <label className="block text-purple-700 font-semibold mb-1">Description</label>
-                <textarea className="w-full border-2 border-purple-200 rounded-xl p-3 focus:border-purple-400 focus:outline-none transition-colors h-24 resize-none" value={editData.description} onChange={e => setEditData({ ...editData, description: e.target.value })} placeholder="Décrivez votre propriété..." required />
+                <textarea 
+                  name="description"
+                  className="w-full border-2 border-purple-200 rounded-xl p-3 focus:border-purple-400 focus:outline-none transition-colors h-24 resize-none" 
+                  value={editData.description} 
+                  onChange={handleInputChange} 
+                  placeholder="Décrivez votre propriété..." 
+                  required 
+                />
               </div>
               <div>
                 <label className="block text-purple-700 font-semibold mb-3">Équipements</label>
