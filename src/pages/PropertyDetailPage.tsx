@@ -624,7 +624,17 @@ export const PropertyDetailPage: React.FC = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {proofs.map((proof) => (
                     <Card key={proof.id} className="cursor-pointer hover:shadow-lg transition min-h-[180px] max-w-xs mx-auto">
-                      <div onClick={() => navigate(`/proof/${proof.id}`)}>
+                      <div 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const targetPath = `/app/proof/${proof.id}`;
+                          if (window.location.pathname !== targetPath) {
+                            navigate(targetPath);
+                          }
+                        }}
+                        style={{ cursor: 'pointer' }}
+                      >
                         <CardHeader>
                           <CardTitle className="truncate text-base font-semibold">{proof.title || proof.contentType}</CardTitle>
                         </CardHeader>

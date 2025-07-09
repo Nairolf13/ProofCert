@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { HomePage } from './pages/HomePage';
 import { AuthPage } from './pages/AuthPage';
 import { DashboardPage } from './pages/DashboardPage';
@@ -21,7 +21,6 @@ import { PropertyDetailPage } from './pages/PropertyDetailPage';
 import MyReservationsPage from './pages/MyReservationsPage';
 import { FavoritesPage } from './pages/FavoritesPage';
 import WalletCallbackPage from './pages/WalletCallbackPage';
-import { UnlockPage } from './pages/UnlockPage';
 import { AdminProofsPage } from './pages/AdminProofsPage';
 
 // Composant pour le layout protégé
@@ -31,100 +30,7 @@ const ProtectedLayout: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWa
       <Navbar onOpenWalletModal={onOpenWalletModal} />
       <MobileNavbar />
       <div className="flex-1 flex flex-col min-h-screen transition-all duration-300 md:ml-64 pt-16 md:pt-0">
-        <Routes>
-          <Route index element={<Navigate to="/app/dashboard" replace />} />
-          <Route path="dashboard" element={
-            <PrivateRoute>
-              <DashboardPage />
-            </PrivateRoute>
-          } />
-          <Route path="add-proof" element={
-            <PrivateRoute>
-              <AddProofPage />
-            </PrivateRoute>
-          } />
-          <Route path="proof/:id" element={
-            <PrivateRoute>
-              <ProofDetailPage />
-            </PrivateRoute>
-          } />
-          <Route path="share/:shareToken" element={
-            <PrivateRoute>
-              <SharePage />
-            </PrivateRoute>
-          } />
-          <Route path="proofs" element={
-            <PrivateRoute>
-              <ProofsPage />
-            </PrivateRoute>
-          } />
-          <Route path="profile" element={
-            <PrivateRoute>
-              <ProfilePage />
-            </PrivateRoute>
-          } />
-          <Route path="properties" element={
-            <PrivateRoute>
-              <PropertiesPage />
-            </PrivateRoute>
-          } />
-          <Route path="properties/:id" element={
-            <PrivateRoute>
-              <PropertyDetailPage />
-            </PrivateRoute>
-          } />
-          <Route path="add-property" element={
-            <PrivateRoute>
-              <AddPropertyPage />
-            </PrivateRoute>
-          } />
-          <Route path="rentals" element={
-            <PrivateRoute>
-              <RentalsPage />
-            </PrivateRoute>
-          } />
-          <Route path="my-reservations" element={
-            <PrivateRoute>
-              <MyReservationsPage />
-            </PrivateRoute>
-          } />
-          <Route path="favorites" element={
-            <PrivateRoute>
-              <FavoritesPage />
-            </PrivateRoute>
-          } />
-          <Route path="properties/:propertyId/proofs" element={
-            <PrivateRoute>
-              <PropertyProofsPage />
-            </PrivateRoute>
-          } />
-          <Route path="add-property-proof/:propertyId" element={
-            <PrivateRoute>
-              <AddPropertyProofPage />
-            </PrivateRoute>
-          } />
-          <Route path="admin/proofs" element={
-            <PrivateRoute adminOnly={true}>
-              <AdminProofsPage />
-            </PrivateRoute>
-          } />
-          <Route path="admin/users" element={
-            <PrivateRoute adminOnly={true}>
-              <div>Admin Users - Page en construction</div>
-            </PrivateRoute>
-          } />
-          <Route path="properties/:id" element={
-            <PrivateRoute>
-              <PropertyDetailPage />
-            </PrivateRoute>
-          } />
-          <Route path="admin-proofs" element={
-            <PrivateRoute adminOnly={true}>
-              <AdminProofsPage />
-            </PrivateRoute>
-          } />
-          <Route path="*" element={<Navigate to="/app/dashboard" replace />} />
-        </Routes>
+        <Outlet />
       </div>
     </div>
   );
@@ -153,24 +59,53 @@ const PublicLayout = () => (
         <WalletCallbackPage />
       </PublicRoute>
     } />
-    <Route path="/unlock" element={
-      <PublicRoute>
-        <UnlockPage />
-      </PublicRoute>
-    } />
     <Route path="*" element={<Navigate to="/" replace />} />
   </Routes>
 );
 
-const AppRouter: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWalletModal }) => (
-  <Routes>
-    <Route path="/app/*" element={
-      <PrivateRoute>
-        <ProtectedLayout onOpenWalletModal={onOpenWalletModal} />
-      </PrivateRoute>
-    } />
-    <Route path="/*" element={<PublicLayout />} />
-  </Routes>
-);
+const AppRouter: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWalletModal }) => {
+  return (
+    <Routes>
+      <Route path="/app" element={
+        <PrivateRoute>
+          <ProtectedLayout onOpenWalletModal={onOpenWalletModal} />
+        </PrivateRoute>
+      }>
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="add-proof" element={<AddProofPage />} />
+        <Route path="proof/:id" element={<ProofDetailPage />} />
+        <Route path="share/:shareToken" element={<SharePage />} />
+        <Route path="proofs" element={<ProofsPage />} />
+        <Route path="profile" element={<ProfilePage />} />
+        <Route path="properties" element={<PropertiesPage />} />
+        <Route path="properties/:id" element={<PropertyDetailPage />} />
+        <Route path="add-property" element={<AddPropertyPage />} />
+        <Route path="rentals" element={<RentalsPage />} />
+        <Route path="my-reservations" element={<MyReservationsPage />} />
+        <Route path="favorites" element={<FavoritesPage />} />
+        <Route path="properties/:propertyId/proofs" element={<PropertyProofsPage />} />
+        <Route path="add-property-proof/:propertyId" element={<AddPropertyProofPage />} />
+        <Route path="admin/proofs" element={
+          <PrivateRoute adminOnly={true}>
+            <AdminProofsPage />
+          </PrivateRoute>
+        } />
+        <Route path="admin/users" element={
+          <PrivateRoute adminOnly={true}>
+            <div>Admin Users - Page en construction</div>
+          </PrivateRoute>
+        } />
+        <Route path="admin-proofs" element={
+          <PrivateRoute adminOnly={true}>
+            <AdminProofsPage />
+          </PrivateRoute>
+        } />
+        <Route path="*" element={<Navigate to="dashboard" replace />} />
+      </Route>
+      <Route path="/*" element={<PublicLayout />} />
+    </Routes>
+  );
+};
 
 export default AppRouter;
