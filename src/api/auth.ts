@@ -1,13 +1,58 @@
 import { API_BASE_URL } from '../config';
 
-export async function register({ email, username, password }: { email: string; username: string; password: string }) {
+export interface RegisterData {
+  email: string;
+  username: string;
+  password: string;
+  confirmPassword?: string;
+  firstName?: string;
+  lastName?: string;
+  phoneNumber?: string;
+  walletAddress?: string;
+  role?: string;
+}
+
+export async function register({ 
+  email, 
+  username, 
+  password, 
+  confirmPassword,
+  firstName,
+  lastName,
+  phoneNumber,
+  walletAddress, 
+  role = 'TENANT' 
+}: RegisterData) {
   const res = await fetch(`${API_BASE_URL}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, username, password }),
+    body: JSON.stringify({ 
+      email, 
+      username, 
+      password, 
+      confirmPassword,
+      firstName,
+      lastName,
+      phoneNumber,
+      walletAddress, 
+      role 
+    }),
+    credentials: 'include',
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Erreur lors de la création du compte');
+  return data;
+}
+
+export async function connectWallet(walletAddress: string) {
+  const res = await fetch(`${API_BASE_URL}/auth/connect-wallet`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ walletAddress }),
+    credentials: 'include',
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Erreur lors de la connexion avec le wallet');
   return data;
 }
 

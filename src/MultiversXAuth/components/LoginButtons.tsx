@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ExtensionLoginButton as SDKExtensionLoginButton } from '@multiversx/sdk-dapp/UI/extension/ExtensionLoginButton';
-import { WalletConnectLoginButton as SDKWalletConnectLoginButton } from '@multiversx/sdk-dapp/UI/walletConnect/WalletConnectLoginButton';
+import { WalletConnectLoginButton as SDKWalletConnectLoginButton } from '@multiversx/sdk-dapp/UI/walletConnect';
 import { WebWalletLoginButton as SDKWebWalletLoginButton } from '@multiversx/sdk-dapp/UI/webWallet/WebWalletLoginButton';
-import { logout } from '../utils';
+import { logout, clearWalletConnectSessions } from '../utils';
 import type { LoginButtonProps } from '../types';
 
 export const ExtensionLoginButton: React.FC<LoginButtonProps> = ({
@@ -18,16 +18,50 @@ export const ExtensionLoginButton: React.FC<LoginButtonProps> = ({
 );
 
 export const WalletConnectLoginButton: React.FC<LoginButtonProps> = ({
-  loginButtonText,
+  loginButtonText = 'xPortal',
   className = '',
-  callbackRoute = '/dashboard'
-}) => (
-  <SDKWalletConnectLoginButton
-    callbackRoute={callbackRoute}
-    loginButtonText={loginButtonText}
-    className={className}
-  />
-);
+  callbackRoute = '/dashboard',
+  nativeAuth = true,
+  onLoginRedirect,
+  onError,
+  ...rest
+}) => {
+  // Nettoyer les sessions au montage du composant
+  useEffect(() => {
+    const initWalletConnect = async () => {
+      try {
+        console.log('Initializing WalletConnect...');
+        await clearWalletConnectSessions();
+        console.log('WalletConnect initialized successfully');
+      } catch (error) {
+        console.error('Error initializing WalletConnect:', error);
+        if (onError) {
+          onError(error instanceof Error ? error : new Error('Failed to initialize WalletConnect'));
+        }
+      }
+    };
+
+    initWalletConnect();
+  }, [onError]);
+
+  // Configuration du bouton WalletConnect
+  const buttonProps = {
+    callbackRoute,
+    loginButtonText,
+    nativeAuth,
+    onLoginRedirect,
+    shouldRenderDefaultCss: false,
+    ...rest
+  };
+
+  return (
+    <div className={`wallet-connect-wrapper ${className}`}>
+      <SDKWalletConnectLoginButton
+        {...buttonProps}
+      />
+    </div>
+  );
+};
 
 export const WebWalletLoginButton: React.FC<LoginButtonProps> = ({
   loginButtonText,

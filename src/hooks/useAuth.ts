@@ -1,7 +1,3 @@
-
-// Temporary authentication stubs for legacy components
-// TODO: Refactor these components to use MultiversX wallet-based authentication
-
 export const useAuth = () => ({
   login: async (credentials: Record<string, unknown>) => { 
     console.warn('Legacy login disabled. Use MultiversX wallet connection.', credentials);

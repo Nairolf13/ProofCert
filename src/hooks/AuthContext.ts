@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { User, RegisterRequest, LoginRequest } from '../types';
+import type { MultiversXAccount } from '../config/multiversx';
 
 export interface AuthContextProps {
   user: User | null;
@@ -7,7 +8,7 @@ export interface AuthContextProps {
   isAuthLoading: boolean;
   register: (data: RegisterRequest) => Promise<void>;
   login: (data: LoginRequest) => Promise<void>;
-  connectWallet: () => Promise<void>;
+  connectWallet: (walletAccount: MultiversXAccount) => Promise<User>;
   disconnect: () => void;
   refreshUser?: () => Promise<void>;
   updateUser: (updatedUser: User) => void;

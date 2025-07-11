@@ -22,9 +22,9 @@ export const proofsApi = {
       throw new Error(getErrorMessage(error, 'Failed to create proof'));
     }
   },
-  getAll: async (): Promise<Proof[]> => {
+  getAll: async (headers?: Record<string, string>): Promise<Proof[]> => {
     try {
-      const response = await api.get('/proofs');
+      const response = await api.get('/proofs', { headers });
       return response.data;
     } catch (error) {
       throw new Error(getErrorMessage(error, 'Failed to fetch proofs'));

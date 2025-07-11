@@ -2,11 +2,16 @@ export interface User {
   id: string;
   email: string;
   username: string;
+  firstName?: string;
+  lastName?: string;
+  phoneNumber?: string;
   address?: string;
   walletAddress?: string;
   createdAt: string;
   updatedAt: string;
-  profileImage?: string;
+  profileImage?: string | null;
+  isEmailVerified?: boolean;
+  isPhoneVerified?: boolean;
   role?: 'OWNER' | 'TENANT' | 'ADMIN';
 }
 
@@ -82,7 +87,12 @@ export interface RegisterRequest {
   email: string;
   username: string;
   password: string;
-  confirmPassword: string;
+  confirmPassword?: string;
+  firstName?: string;
+  lastName?: string;
+  phoneNumber?: string;
+  walletAddress?: string;
+  role?: 'OWNER' | 'TENANT' | 'ADMIN';
 }
 
 export interface ShareableProof {

@@ -13,7 +13,7 @@ interface PropertyHeaderProps {
   region: string;
   country: string;
   createdAt: string;
-  owner?: { username?: string; email?: string; profileImage?: string };
+  owner?: { username?: string; email?: string; profileImage?: string | null };
   isOwner?: boolean;
   isEditing?: boolean;
   isDeleting?: boolean;

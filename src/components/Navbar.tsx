@@ -31,37 +31,51 @@ export const Navbar: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWall
   const location = useLocation();
   const [isWalletAdmin, setIsWalletAdmin] = useState(false);
 
+  // Logs de débogage
+  console.log('Navbar - isWeb3LoggedIn:', isWeb3LoggedIn);
+  console.log('Navbar - web3User:', web3User);
+  console.log('Navbar - isClassicLoggedIn:', isClassicLoggedIn);
+  console.log('Navbar - classicUser:', classicUser);
+  console.log('Navbar - location:', location);
+
   const isActive = (path: string) => location.pathname.startsWith(path);
 
-  // Vérifier le statut admin du wallet uniquement si nécessaire
+  // Vérifier le statut admin du wallet
   useEffect(() => {
     let ignore = false;
     
-    const checkWalletAdmin = async () => {
-      // Ne pas vérifier si déjà admin via l'authentification classique
-      if (isClassicLoggedIn && classicUser?.role === 'ADMIN') {
-        setIsWalletAdmin(false);
+    const checkAdminStatus = async () => {
+      // Si l'utilisateur est déjà admin via l'authentification classique
+      if (classicUser?.role === 'ADMIN') {
+        console.log('Admin détecté via authentification classique');
+        if (!ignore) setIsWalletAdmin(true);
         return;
       }
       
       // Vérifier le statut admin du wallet si connecté
       if (isWeb3LoggedIn && web3User?.walletAddress) {
         try {
-          const user = await userApi.getByWallet(web3User.walletAddress);
+          console.log('Vérification du statut admin pour le wallet:', web3User.walletAddress);
+          const { user, role } = await userApi.getByWallet(web3User.walletAddress);
+          console.log('Résultat de la vérification admin:', { user, role });
+          
           if (!ignore) {
-            setIsWalletAdmin(!!user && user.role === 'ADMIN');
+            const walletIsAdmin = role === 'ADMIN';
+            console.log('Nouveau statut admin:', walletIsAdmin);
+            setIsWalletAdmin(walletIsAdmin);
           }
         } catch (error) {
-          console.error('Error checking wallet admin status:', error);
+          console.error('Erreur lors de la vérification du statut admin:', error);
           if (!ignore) setIsWalletAdmin(false);
         }
       } else if (!ignore) {
+        console.log('Pas de wallet connecté, réinitialisation du statut admin');
         setIsWalletAdmin(false);
       }
     };
     
     // Délai pour éviter les appels trop fréquents
-    const timer = setTimeout(checkWalletAdmin, 500);
+    const timer = setTimeout(checkAdminStatus, 500);
     
     return () => {
       ignore = true;
@@ -177,17 +191,22 @@ export const Navbar: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWall
           );
         })}
         {isAdmin && (
-          <Link
-            to="/app/admin/proofs"
-            className={`flex items-center gap-3 px-3 py-3 rounded-xl font-semibold text-base transition-all duration-150 w-full group
-              ${isActive('/app/admin/proofs')
-                ? 'bg-primary-light text-primary shadow-md scale-105'
-                : 'text-secondary hover:bg-surface-secondary hover:text-primary'}
-            `}
-          >
-            <ArchiveBoxIcon className={`w-6 h-6 ${isActive('/app/admin/proofs') ? 'text-primary' : 'text-secondary group-hover:text-primary'}`} />
-            <span>Archives Preuves</span>
-          </Link>
+          <div className="mt-8">
+            <h3 className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Administration
+            </h3>
+            <nav className="mt-2 space-y-1">
+              <Link
+                to="/app/admin/proofs"
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+                  isActive('/app/admin') ? 'bg-primary/10 text-primary' : 'hover:bg-gray-100'
+                }`}
+              >
+                <ArchiveBoxIcon className="w-6 h-6" />
+                <span>Preuves archivées</span>
+              </Link>
+            </nav>
+          </div>
         )}
       </nav>
       <div className="mt-auto flex flex-col gap-3 w-full">

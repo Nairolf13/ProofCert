@@ -17,7 +17,7 @@ const api = axios.create({
   baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
   timeout: 15000,
-  withCredentials: true // Enable credentials (cookies) for all requests
+  withCredentials: true 
 });
 
 api.interceptors.request.use((config) => {
@@ -28,7 +28,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Helper function to extract error message from API response
 const getErrorMessage = (error: unknown, defaultMessage: string): string => {
   if (error instanceof AxiosError) {
     const apiError = error.response?.data as { error: string; message?: string };
@@ -40,7 +39,6 @@ const getErrorMessage = (error: unknown, defaultMessage: string): string => {
   return defaultMessage;
 };
 
-// Add Axios response interceptor for automatic token refresh
 let isRefreshing = false;
 type FailedQueueItem = {
   resolve: (token: string) => void;
@@ -184,12 +182,16 @@ export const userApi = {
       throw new Error(getErrorMessage(error, 'Profile image update failed'));
     }
   },
-  getByWallet: async (walletAddress: string): Promise<User | null> => {
+  getByWallet: async (walletAddress: string): Promise<{ user: User | null; role?: string }> => {
     try {
       const res = await api.get(`/users/by-wallet/${walletAddress}`);
-      return res.data;
-    } catch {
-      return null;
+      if (res.data && res.data.success && res.data.exists) {
+        return { user: res.data.data, role: res.data.data?.role };
+      }
+      return { user: null };
+    } catch (error) {
+      console.error('Error fetching user by wallet:', error);
+      return { user: null };
     }
   },
 };

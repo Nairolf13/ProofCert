@@ -3,16 +3,24 @@ import { EnvironmentsEnum } from '@multiversx/sdk-dapp/types/enums.types';
 // Utilisons la configuration existante du projet
 export const MULTIVERSX_NETWORK_CONFIG = {
   name: 'customConfig',
-  apiTimeout: 6000,
-  walletConnectV2ProjectId: '9b1a9564f91cb659ffe21b73d5c4e2d8',
+  apiTimeout: 10000, // Augmenté le timeout pour les connexions lentes
+  walletConnectV2ProjectId: '9b1a9564f91cb659ffe21b73d5c4e2d8', // Project ID valide pour WalletConnect v2
 };
 
 export const MULTIVERSX_DAPP_CONFIG = {
   shouldUseWebViewProvider: false, // Désactiver pour éviter les erreurs de handshake
   logoutRoute: '/',
-  // Configuration pour éviter les erreurs de session WalletConnect
-  walletConnectV2RelayAddresses: ['wss://relay.walletconnect.org'],
   walletConnectV2ProjectId: '9b1a9564f91cb659ffe21b73d5c4e2d8',
+  // Configuration améliorée pour WalletConnect
+  walletConnectDeepLink: 'https://xportal.com',
+  walletConnectV2Options: {
+    // Utiliser le relai officiel de WalletConnect
+    relayUrl: 'wss://relay.walletconnect.com',
+    // Activer le mode pairing pour une meilleure expérience utilisateur
+    shouldPairWithWalletConnect: true,
+    // Désactiver le mode pairing si nécessaire
+    // shouldPairWithWalletConnect: false,
+  },
 };
 
 export const MULTIVERSX_ENVIRONMENT = EnvironmentsEnum.devnet; // Changez selon votre environnement

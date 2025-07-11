@@ -2,10 +2,12 @@
 export const dAppConfig = {
   chainId: 'D', // Devnet
   environment: 'devnet' as const,
-  walletConnectV2ProjectId: 'demo-project-id', // Remplacez par votre vrai Project ID WalletConnect
+  walletConnectV2ProjectId: '9b1a9564f91cb659ffe21b73d5c4e2d8', // Même Project ID que dans la config MultiversX
   apiUrl: 'https://devnet-api.multiversx.com',
   explorerUrl: 'https://devnet-explorer.multiversx.com',
-  walletAddress: 'https://devnet-wallet.multiversx.com'
+  walletAddress: 'https://devnet-wallet.multiversx.com',
+  walletConnectDeepLink: 'https://xportal.com',
+  walletConnectV2RelayUrl: 'wss://relay.walletconnect.com'
 };
 
 // Configuration des providers réels

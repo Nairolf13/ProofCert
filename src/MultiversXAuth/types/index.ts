@@ -25,11 +25,20 @@ export interface MultiversXDappConfig {
   logoutRoute: string;
 }
 
-export interface LoginButtonProps {
-  loginButtonText: string;
+// Types supplémentaires pour les boutons de connexion
+type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'link';
+
+export interface LoginButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'onError'> {
+  loginButtonText?: string;
   className?: string;
   callbackRoute?: string;
   onLoginRedirect?: () => void;
+  onError?: (error: Error) => void;
+  buttonClassName?: string;
+  shouldRenderDefaultCss?: boolean;
+  variant?: ButtonVariant;
+  size?: 'sm' | 'md' | 'lg';
+  nativeAuth?: boolean;
 }
 
 export interface MultiversXAuthState {

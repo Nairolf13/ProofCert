@@ -4,21 +4,25 @@ import { useState } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import AppRouter from './router';
 import { ModalConnectWallet } from './components/ModalConnectWallet';
+import { initWalletConnect } from './MultiversXAuth/utils/initWalletConnect';
+
+// Initialiser WalletConnect
+initWalletConnect();
 
 function App() {
   const [showWalletModal, setShowWalletModal] = useState(false);
 
   return (
     <Router>
-      <AuthProvider>
-        <MultiversXProvider>
+      <MultiversXProvider>
+        <AuthProvider>
           <div className="min-h-screen bg-app-background flex">
             <AppRouter onOpenWalletModal={() => setShowWalletModal(true)} />
           </div>
           {/* ModalConnectWallet rendue comme sur la HomePage, sans Portal custom */}
           <ModalConnectWallet isOpen={showWalletModal} onClose={() => setShowWalletModal(false)} />
-        </MultiversXProvider>
-      </AuthProvider>
+        </AuthProvider>
+      </MultiversXProvider>
     </Router>
   );
 }

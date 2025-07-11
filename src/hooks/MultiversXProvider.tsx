@@ -1,4 +1,5 @@
-import React, { createContext, useReducer, useEffect, useMemo } from 'react';
+import React, { createContext, useReducer, useEffect, useMemo, useContext } from 'react';
+import { AuthContext } from './AuthContext';
 import type { ReactNode } from 'react';
 import type { MultiversXAccount, MultiversXTransaction } from '../config/multiversx';
 import { createRealWalletProviders, type RealWalletProvider, type RealProvidersMap } from '../config/realWalletProviders';
@@ -73,6 +74,12 @@ const MultiversXProvider: React.FC<MultiversXProviderProps> = ({ children }) => 
     return createRealWalletProviders() as RealProvidersMap;
   }, []);
 
+  const authContext = useContext(AuthContext);
+  if (!authContext) {
+    throw new Error('MultiversXProvider must be used within an AuthProvider');
+  }
+  const { connectWallet, disconnect: disconnectAuth } = authContext;
+
   // Fonction de connexion
   const connect = async (providerId: keyof RealProvidersMap) => {
     try {
@@ -87,6 +94,9 @@ const MultiversXProvider: React.FC<MultiversXProviderProps> = ({ children }) => 
       console.log(`Attempting to connect with ${provider.name}...`);
       const account = await provider.connect();
       console.log('Connected successfully:', account);
+      
+      // Connecter l'utilisateur via AuthContext
+      await connectWallet(account);
       
       dispatch({ type: 'SET_PROVIDER', payload: provider });
       dispatch({ type: 'SET_ACCOUNT', payload: account });
@@ -116,9 +126,17 @@ const MultiversXProvider: React.FC<MultiversXProviderProps> = ({ children }) => 
       // Nettoyer le localStorage
       localStorage.removeItem('multiversx_provider');
       localStorage.removeItem('multiversx_account');
+      localStorage.removeItem('user'); // Supprimer les informations utilisateur
 
+      // Réinitialiser l'état
       dispatch({ type: 'RESET' });
+      
+      // Déconnecter l'utilisateur via AuthContext
+      if (disconnectAuth) {
+        await disconnectAuth();
+      }
     } catch (error) {
+      console.error('Error during disconnection:', error);
       dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Disconnection failed' });
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -136,35 +154,89 @@ const MultiversXProvider: React.FC<MultiversXProviderProps> = ({ children }) => 
   // Restaurer la session au chargement
   useEffect(() => {
     const restoreSession = async () => {
-      const savedProviderId = localStorage.getItem('multiversx_provider');
-      const savedAccount = localStorage.getItem('multiversx_account');
+      try {
+        const savedProviderId = localStorage.getItem('multiversx_provider');
+        const savedAccount = localStorage.getItem('multiversx_account');
+        const savedUser = localStorage.getItem('user');
 
-      if (savedProviderId && savedAccount) {
-        try {
-          const provider = providers[savedProviderId as keyof RealProvidersMap];
-          const account = JSON.parse(savedAccount);
-
-          if (provider && provider.isConnected()) {
-            console.log('Restoring session for:', provider.name);
-            dispatch({ type: 'SET_PROVIDER', payload: provider });
-            dispatch({ type: 'SET_ACCOUNT', payload: account });
-            dispatch({ type: 'SET_CONNECTED', payload: true });
-          } else {
-            // Si le provider n'est plus connecté, nettoyer le cache
-            console.log('Provider no longer connected, clearing cache');
+        if (!savedProviderId || !savedAccount || !savedUser) {
+          // Si des données manquent, nettoyer tout pour éviter des états incohérents
+          if (savedProviderId || savedAccount) {
+            console.log('Cleaning up incomplete connection data');
             localStorage.removeItem('multiversx_provider');
             localStorage.removeItem('multiversx_account');
           }
-        } catch (error) {
-          console.warn('Failed to restore MultiversX session:', error);
-          localStorage.removeItem('multiversx_provider');
-          localStorage.removeItem('multiversx_account');
+          return;
         }
+
+        try {
+          // Vérifier que le provider existe
+          const provider = providers[savedProviderId as keyof RealProvidersMap];
+          if (!provider) {
+            throw new Error(`Provider ${savedProviderId} not found`);
+          }
+
+          // Parser l'account
+          let account: MultiversXAccount;
+          try {
+            account = JSON.parse(savedAccount);
+            if (!account || typeof account !== 'object' || !account.address) {
+              throw new Error('Invalid account data');
+            }
+          } catch {
+            throw new Error('Failed to parse account data');
+          }
+
+          // Vérifier si le provider est toujours connecté
+          const isConnected = await Promise.resolve(provider.isConnected?.() ?? false);
+          
+          if (isConnected) {
+            console.log('Restoring session for provider:', provider.name);
+            
+            try {
+              // Restaurer l'utilisateur via AuthContext
+              if (connectWallet) {
+                await connectWallet(account);
+              }
+              
+              dispatch({ type: 'SET_PROVIDER', payload: provider });
+              dispatch({ type: 'SET_ACCOUNT', payload: account });
+              dispatch({ type: 'SET_CONNECTED', payload: true });
+              return; // Succès
+            } catch (walletError) {
+              console.error('Failed to restore wallet connection:', walletError);
+              // Continuer pour nettoyer les données invalides
+            }
+          }
+          
+          // Si on arrive ici, soit le provider n'est pas connecté, soit la connexion a échoué
+          console.log('Provider connection lost or invalid, clearing cache');
+          
+        } catch (error) {
+          console.warn('Error during session restoration:', error);
+        }
+        
+        // Nettoyer les données en cas d'erreur ou de déconnexion
+        localStorage.removeItem('multiversx_provider');
+        localStorage.removeItem('multiversx_account');
+        localStorage.removeItem('user');
+        dispatch({ type: 'RESET' });
+        
+      } catch (error) {
+        console.error('Unexpected error in restoreSession:', error);
+        // En cas d'erreur inattendue, nettoyer tout pour éviter des états corrompus
+        localStorage.removeItem('multiversx_provider');
+        localStorage.removeItem('multiversx_account');
+        localStorage.removeItem('user');
+        dispatch({ type: 'RESET' });
       }
     };
 
-    restoreSession();
-  }, [providers]);
+    // Gérer les erreurs non capturées dans la promesse
+    restoreSession().catch(error => {
+      console.error('Unhandled error in restoreSession:', error);
+    });
+  }, [providers, connectWallet]);
 
   const value: MultiversXContextType = {
     ...state,
