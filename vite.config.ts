@@ -56,11 +56,13 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
+      // Redirige toutes les requêtes commençant par /api vers le serveur backend
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'http://localhost:3001', // Port du serveur backend
         changeOrigin: true,
         secure: false,
-      },
+        rewrite: (path) => path.replace(/^\/api/, '')
+      }
     },
   },
   preview: {

@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
-import {
-  useGetAccountInfo,
-  useGetIsLoggedIn,
-  useGetLoginInfo,
-  logout
-} from '../lib/multiversx';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useGetAccountInfo, useGetIsLoggedIn } from '@multiversx/sdk-dapp/hooks';
+import { logout as sdkLogout } from '@multiversx/sdk-dapp/utils/logout';
+import userApi from '../api/user';
+
+import type { User } from '../types';
+
+type UserRole = 'OWNER' | 'TENANT' | 'ADMIN' | 'USER';
 
 interface MultiversXUser {
   // Champs de base du wallet
@@ -14,16 +15,19 @@ interface MultiversXUser {
   shard: number;
   walletAddress: string;
   
-  // Champs optionnels
-  username?: string | null;
-  
   // Champs de l'utilisateur classique
-  id?: string;
-  role?: string;
-  email?: string;
-  
-  // Autres champs potentiels
-  [key: string]: string | number | boolean | null | undefined;
+  id: string;
+  role: UserRole;
+  email: string;
+  username: string | null;
+  firstName?: string;
+  lastName?: string;
+  phoneNumber?: string;
+  profileImage?: string | null;
+  isEmailVerified?: boolean;
+  isPhoneVerified?: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Vérifier si l'utilisateur est authentifié via l'API classique
@@ -34,8 +38,10 @@ const getClassicAuthUser = (): MultiversXUser | null => {
   if (!userData) return null;
   
   try {
-    const user = JSON.parse(userData);
-    return {
+    const user: User = JSON.parse(userData);
+    
+    // Créer un objet avec des valeurs par défaut pour les champs obligatoires
+    const defaultUser: MultiversXUser = {
       // Champs de base
       address: user.walletAddress || '',
       balance: '0',
@@ -43,12 +49,26 @@ const getClassicAuthUser = (): MultiversXUser | null => {
       shard: 0,
       walletAddress: user.walletAddress || '',
       
-      // Champs de l'utilisateur classique
-      id: user.id,
-      role: user.role,
-      email: user.email,
-      username: user.username || null
+      // Champs obligatoires avec valeurs par défaut
+      id: user.id || '',
+      role: user.role || 'USER',
+      email: user.email || '',
+      username: user.username || null,
+      
+      // Champs optionnels
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phoneNumber: user.phoneNumber,
+      profileImage: user.profileImage,
+      isEmailVerified: user.isEmailVerified,
+      isPhoneVerified: user.isPhoneVerified,
+      
+      // S'assurer que les champs de date sont toujours définis
+      createdAt: user.createdAt || new Date().toISOString(),
+      updatedAt: user.updatedAt || new Date().toISOString()
     };
+    
+    return defaultUser;
   } catch (error) {
     console.error('Error parsing user data:', error);
     return null;
@@ -58,170 +78,203 @@ const getClassicAuthUser = (): MultiversXUser | null => {
 export const useMultiversXAuth = () => {
   const { account, address } = useGetAccountInfo();
   const isWalletConnected = useGetIsLoggedIn();
-  const { tokenLogin } = useGetLoginInfo();
-  const [isLoading, setIsLoading] = useState(false);
+  // Suppression de l'état isLoading inutilisé
   const [userData, setUserData] = useState<MultiversXUser | null>(() => {
     // Au chargement initial, on essaie de récupérer l'utilisateur classique
-    const classicUser = getClassicAuthUser();
-    console.log('Initial user data from localStorage:', classicUser);
-    return classicUser;
+    return getClassicAuthUser();
   });
+  
+  // Mettre à jour l'utilisateur avec les données du wallet
+  const updateUserWithWalletData = useCallback(() => {
+    if (isWalletConnected && address && account) {
+      setUserData(prev => ({
+        ...(prev || {} as MultiversXUser),
+        address: address,
+        balance: account.balance?.toString() || '0',
+        nonce: account.nonce || 0,
+        shard: account.shard || 0,
+        walletAddress: address,
+        role: prev?.role || 'USER',
+        id: prev?.id || '',
+        email: prev?.email || '',
+        username: prev?.username || null,
+        createdAt: prev?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }));
+    }
+  }, [isWalletConnected, address, account]);
 
   // Synchroniser l'état d'authentification avec le localStorage
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
-    let isFirstRender = true;
-    
     const syncAuthState = () => {
       // Toujours vérifier l'utilisateur classique en premier
       const classicUser = getClassicAuthUser();
       
-      console.group('🔍 [useMultiversXAuth] Sync auth state');
-      console.log('Classic user:', classicUser);
-      console.log('Wallet connected:', isWalletConnected);
-      console.log('Wallet address:', address);
-      
       if (isWalletConnected && address) {
-        console.log('Wallet connected, syncing with classic user:', {
-          hasClassicUser: !!classicUser,
-          classicUserId: classicUser?.id,
-          classicUserRole: classicUser?.role,
-          classicUserEmail: classicUser?.email,
-          walletAddress: address
-        });
-
-        // Mettre à jour les données utilisateur pour le wallet connecté
-        setUserData(prevUser => {
-          // On fusionne toujours avec les données existantes pour préserver l'état
-          const updatedUser: MultiversXUser = {
-            // D'abord les données du wallet
-            address,
-            balance: account?.balance?.toString() || '0',
-            nonce: account?.nonce || 0,
-            shard: account?.shard || 0,
-            walletAddress: address,
-            
-            // Puis les données existantes (si elles existent)
-            ...(prevUser || {}),
-            
-            // On conserve toujours les informations de l'utilisateur classique si elles existent
-            ...(classicUser ? {
-              id: classicUser.id,
-              role: classicUser.role,
-              email: classicUser.email,
-              username: classicUser.username || null // S'assurer que username est soit string soit null
-            } : {})
-          };
-          
-          console.log('Updated user data:', updatedUser);
-          return updatedUser;
-        });
+        // Créer un utilisateur avec les données du wallet
+        const newUser: MultiversXUser = {
+          address: address,
+          balance: account?.balance?.toString() || '0',
+          nonce: account?.nonce || 0,
+          shard: account?.shard || 0,
+          walletAddress: address,
+          // Valeurs par défaut pour les champs obligatoires
+          id: '',
+          role: 'USER',
+          email: '',
+          username: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        
+        // Mettre à jour l'utilisateur avec les données du wallet
+        setUserData(prev => ({
+          ...(prev || {} as MultiversXUser),
+          ...newUser
+        }));
+        
+        // Fusionner avec les données de l'utilisateur classique si elles existent
         
         // Mettre à jour le localStorage
         if (localStorage.getItem('multiversx_address') !== address) {
-          console.log('Updating wallet address in localStorage');
           localStorage.setItem('multiversx_address', address);
           localStorage.setItem('multiversx_logged_in', 'true');
         }
-      } else if (!isWalletConnected && !isFirstRender) {
+      } else {
         // Si déconnecté du wallet, revenir à l'utilisateur classique
         if (classicUser) {
-          console.log('Retour à l\'utilisateur classique:', { 
-            id: classicUser.id, 
-            role: classicUser.role,
-            email: classicUser.email
-          });
           setUserData(classicUser);
         } else {
-          console.log('Aucun utilisateur classique trouvé, déconnexion complète');
           setUserData(null);
         }
         
         // Nettoyer le localStorage du wallet
-        console.log('Cleaning up wallet data from localStorage');
         localStorage.removeItem('multiversx_address');
         localStorage.removeItem('multiversx_logged_in');
         localStorage.removeItem('multiversx_provider');
       }
-      
-      console.groupEnd();
-      isFirstRender = false;
     };
     
-    const rafId = requestAnimationFrame(syncAuthState);
+    syncAuthState();
+  }, [isWalletConnected, address, account?.balance, account?.nonce, account?.username, account?.shard, updateUserWithWalletData]);
+
+  // Suppression de la fonction handleLogout redondante
+  // Utilisation de handleLogoutInternal pour la déconnexion
+  
+  // Suppression des déclarations redondantes de user et isLoggedIn
+  
+  // Vérifier périodiquement le rôle administrateur
+  useEffect(() => {
+    if (!isWalletConnected || !address) return;
+
+    const checkAdminRole = async () => {
+      try {
+        const response = await userApi.get(`/users/by-wallet/${address}`);
+        
+        if (response.data?.success && response.data?.exists && response.data?.data) {
+          const serverUserData = response.data.data;
+          
+          // Mettre à jour l'état local si nécessaire
+          setUserData(prevUser => {
+            if (!prevUser || prevUser.role !== serverUserData.role) {
+              // Mettre à jour le localStorage
+              const savedUser = localStorage.getItem('user');
+              if (savedUser) {
+                try {
+                  const parsedUser = JSON.parse(savedUser);
+                  if (parsedUser.role !== serverUserData.role) {
+                    const updatedUser = { ...parsedUser, role: serverUserData.role };
+                    localStorage.setItem('user', JSON.stringify(updatedUser));
+                  }
+                } catch (error) {
+                  console.error('Error parsing saved user:', error);
+                }
+              }
+              
+              return {
+                ...(prevUser || {} as MultiversXUser),
+                role: serverUserData.role,
+                id: serverUserData.id || prevUser?.id || '',
+                email: serverUserData.email || prevUser?.email || '',
+                username: serverUserData.username || prevUser?.username || null,
+                firstName: serverUserData.firstName || prevUser?.firstName,
+                lastName: serverUserData.lastName || prevUser?.lastName,
+                phoneNumber: serverUserData.phoneNumber || prevUser?.phoneNumber,
+                profileImage: serverUserData.profileImage || prevUser?.profileImage,
+                isEmailVerified: serverUserData.isEmailVerified ?? prevUser?.isEmailVerified,
+                isPhoneVerified: serverUserData.isPhoneVerified ?? prevUser?.isPhoneVerified,
+                createdAt: serverUserData.createdAt || prevUser?.createdAt || new Date().toISOString(),
+                updatedAt: serverUserData.updatedAt || new Date().toISOString(),
+                // Champs obligatoires de MultiversXUser
+                address: prevUser?.address || '',
+                balance: prevUser?.balance || '0',
+                nonce: prevUser?.nonce || 0,
+                shard: prevUser?.shard || 0,
+                walletAddress: prevUser?.walletAddress || ''
+              };
+            }
+            return prevUser;
+          });
+        }
+      } catch (error) {
+        console.error('Error checking admin role:', error);
+      }
+    };
+    
+    // Vérifier immédiatement, puis périodiquement pour s'assurer que le rôle est à jour
+    checkAdminRole();
+    const intervalId = setInterval(checkAdminRole, 30000); // Vérifier toutes les 30 secondes
     
     return () => {
-      cancelAnimationFrame(rafId);
+      clearInterval(intervalId);
     };
-  }, [isWalletConnected, address, account?.balance, account?.nonce, account?.username, account?.shard]);
+  }, [isWalletConnected, address]);
 
-  const handleLogout = async () => {
-    setIsLoading(true);
+  // Nettoyer les données utilisateur lors de la déconnexion
+  const handleLogoutInternal = useCallback(async () => {
     try {
-      console.log('Début de la déconnexion...');
-      
-      // Sauvegarder l'utilisateur classique avant la déconnexion
-      const classicUser = getClassicAuthUser();
-      
-      // Nettoyer le localStorage du wallet
-      console.log('Nettoyage du localStorage du wallet...');
+      await sdkLogout();
+      setUserData(null);
+      localStorage.removeItem('user');
       localStorage.removeItem('multiversx_address');
       localStorage.removeItem('multiversx_logged_in');
       localStorage.removeItem('multiversx_provider');
-      
-      // Utiliser la fonction de déconnexion du SDK
-      console.log('Appel de la fonction de déconnexion du SDK...');
-      await logout('/', undefined, false);
-      
-      // Réinitialiser les données utilisateur avec l'utilisateur classique
-      console.log('Réinitialisation des données utilisateur...');
-      setUserData(classicUser);
-      
-      console.log('Déconnexion réussie');
     } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error);
-      // En cas d'erreur, essayer de restaurer l'utilisateur classique
-      const classicUser = getClassicAuthUser();
-      if (classicUser) {
-        console.log('Restauration de l\'utilisateur classique après erreur');
-        setUserData(classicUser);
-      }
-    } finally {
-      setIsLoading(false);
+      console.error('Error during logout:', error);
     }
-  };
+  }, []);
 
-  // L'utilisateur est considéré comme connecté s'il est connecté via wallet ou via l'authentification classique
-  const isLoggedIn = isWalletConnected || !!userData?.id;
+  // Mettre à jour le rôle dans les données utilisateur si nécessaire et retourner les valeurs du hook
+  const userWithRole = useMemo(() => {
+    if (!userData) return null;
+    
+    // Si l'utilisateur a un rôle ADMIN dans la base de données mais pas dans le state local
+    if (userData.role !== 'ADMIN' && userData.email?.endsWith('@admin.proofcert.app')) {
+      return {
+        ...userData,
+        role: 'ADMIN' as const
+      };
+    }
+    
+    return userData;
+  }, [userData]);
 
+  // Retourner les valeurs du hook
+  const isUserLoggedIn = isWalletConnected || !!userData?.id;
+  
   return {
-    // Authentification state
-    isLoggedIn,
-    isLoading,
-    
-    // Account info
-    account: userData || account,
-    address: userData?.walletAddress || address,
-    
-    // Login info (includes native auth token)
-    tokenLogin,
-    nativeAuthToken: tokenLogin?.nativeAuthToken,
-    
-    // Actions
-    logout: handleLogout,
-    
-    // Computed values
-    walletAddress: userData?.walletAddress || address,
-    user: userData || (isWalletConnected && account ? {
-      id: undefined,
-      role: undefined,
-      address,
-      balance: account.balance?.toString() || '0',
-      nonce: account.nonce || 0,
-      username: account.username || null,
-      shard: account.shard || 0,
-      walletAddress: address
-    } : null)
-  };
+    isLoggedIn: isUserLoggedIn,
+    isLoading: false, // Ajout d'une valeur par défaut pour isLoading
+    user: userWithRole, // Utilisation de userWithRole au lieu de user
+    address: userData?.address || '',
+    balance: userData?.balance || '0',
+    nonce: userData?.nonce || 0,
+    shard: userData?.shard || 0,
+    walletAddress: userData?.walletAddress || '',
+    logout: handleLogoutInternal,
+    updateUser: setUserData,
+    account: userData // Ajout de la propriété account pour la rétrocompatibilité
+  } as const;
 };

@@ -51,13 +51,17 @@ router.get('/', authenticateToken, (async (req: AuthenticatedRequest, res: Respo
   try {
     // Définir le type pour la condition de recherche
     type WhereCondition = {
-      deletedAt: null;
+      deletedAt?: Date | { equals: null } | { not: null } | null;
       userId?: string;
       OR?: Array<{ userId: string }>;
     };
     
+    // Vérifier si on doit inclure les preuves supprimées (uniquement pour les admins)
+    const includeDeleted = req.query.includeDeleted === 'true' && req.user.role === 'ADMIN';
+    
     const where: WhereCondition = { 
-      deletedAt: null
+      // Si on inclut les supprimés, on ne filtre pas sur deletedAt
+      ...(includeDeleted ? {} : { deletedAt: null })
     };
     
     // Si l'utilisateur n'est pas admin, on filtre par son ID ou son adresse de wallet

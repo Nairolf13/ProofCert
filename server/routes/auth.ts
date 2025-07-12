@@ -197,6 +197,64 @@ router.patch('/role', authenticateToken, async (req, res) => {
   }
 }) as import('express').RequestHandler;
 
+// PATCH /api/auth/admin/update-role : permet à un administrateur de mettre à jour le rôle d'un autre utilisateur
+router.patch('/admin/update-role', authenticateToken, async (req, res) => {
+  if (!req.user || req.user.role !== 'ADMIN') { 
+    res.status(403).json({ error: 'Forbidden: Admin access required' }); 
+    return; 
+  }
+  
+  const { userId, role } = req.body;
+  
+  if (!userId || !role || (role !== 'ADMIN' && role !== 'OWNER' && role !== 'TENANT')) {
+    res.status(400).json({ 
+      error: 'Invalid request',
+      details: 'Both userId and role (ADMIN, OWNER, or TENANT) are required' 
+    }); 
+    return;
+  }
+  
+  try {
+    // Vérifier que l'utilisateur existe
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+    
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    
+    // Mettre à jour le rôle de l'utilisateur
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { role },
+      select: { 
+        id: true, 
+        email: true, 
+        username: true, 
+        walletAddress: true, 
+        role: true,
+        createdAt: true, 
+        updatedAt: true 
+      }
+    });
+    
+    res.json({ 
+      success: true,
+      message: `User role updated to ${role}`,
+      user: updatedUser
+    });
+    
+  } catch (error) {
+    console.error('Error updating user role:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+}) as import('express').RequestHandler;
+
 // Ajoute ce router à l'export (à utiliser dans server.ts)
 export { propertyRentalRouter };
 

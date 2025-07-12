@@ -90,87 +90,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const parsedUser = JSON.parse(savedUser);
         if (parsedUser.walletAddress === walletAccount.address) {
           console.log('Utilisateur trouvé dans le localStorage:', parsedUser);
+          
+          // Vérifier si le rôle est à jour dans le localStorage
+          const response = await userApi.get(`/by-wallet/${walletAccount.address}`);
+          if (response.data?.success && response.data?.exists && response.data?.data) {
+            const userData = response.data.data;
+            if (userData.role === 'ADMIN' && parsedUser.role !== 'ADMIN') {
+              console.log('Mise à jour du rôle administrateur dans le localStorage');
+              parsedUser.role = 'ADMIN';
+              localStorage.setItem('user', JSON.stringify(parsedUser));
+            }
+          }
+          
           setUser(parsedUser);
           setIsAuthenticated(true);
           return parsedUser;
         }
       }
       
-      // Vérifier d'abord si l'utilisateur existe dans la base de données via l'API users/by-wallet
-      try {
-        console.log('Recherche de l\'utilisateur dans la base de données pour l\'adresse:', walletAccount.address);
-        const response = await userApi.get(`/by-wallet/${walletAccount.address}`);
-        console.log('Réponse de l\'API by-wallet:', response);
+      // Vérifier si l'utilisateur existe dans la base de données via l'API users/by-wallet
+      console.log('Recherche de l\'utilisateur dans la base de données pour l\'adresse:', walletAccount.address);
+      const response = await userApi.get(`/by-wallet/${walletAccount.address}`);
+      console.log('Réponse de l\'API by-wallet:', response);
+      
+      if (response.data && response.data.success && response.data.exists && response.data.data) {
+        // Utilisateur trouvé, mettre à jour les données locales
+        const userData = response.data.data;
+        console.log('Utilisateur trouvé dans la base de données:', userData);
         
-        if (response.data && response.data.success && response.data.exists && response.data.data) {
-          // Utilisateur existant, mettre à jour les données locales
-          const userData = response.data.data;
-          console.log('Utilisateur trouvé dans la base de données:', userData);
-          setUser(userData);
-          setIsAuthenticated(true);
-          localStorage.setItem('user', JSON.stringify(userData));
-          return userData;
-        }
-      } catch (error) {
-        console.warn('Erreur lors de la récupération de l\'utilisateur depuis le backend:', error);
-        // Continuer avec la création d'un nouvel utilisateur si l'utilisateur n'existe pas
+        // Mettre à jour le localStorage avec les données complètes de l'utilisateur
+        localStorage.setItem('user', JSON.stringify(userData));
+        
+        setUser(userData);
+        setIsAuthenticated(true);
+        
+        return userData;
+      } else {
+        // Aucun utilisateur trouvé avec cette adresse wallet
+        console.log('Aucun utilisateur trouvé avec cette adresse wallet');
+        throw new Error('Aucun compte trouvé pour cette adresse wallet. Veuillez d\'abord créer un compte.');
       }
       
-      // Créer un nouvel utilisateur avec les infos du wallet
-      const userData: User = {
-        id: walletAccount.address,
-        email: `${walletAccount.address}@wallet`,
-        username: walletAccount.address.slice(0, 8) + '...' + walletAccount.address.slice(-4),
-        walletAddress: walletAccount.address,
-        role: 'TENANT' as const, // Rôle par défaut, peut être mis à jour plus tard
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        // Ajouter des champs supplémentaires pour correspondre au type User attendu
-        firstName: '',
-        lastName: '',
-        phoneNumber: '',
-        profileImage: null,
-        isEmailVerified: false,
-        isPhoneVerified: false
-      };
-      
-      // Enregistrer l'utilisateur dans la base de données
-      try {
-        console.log('Création d\'un nouvel utilisateur avec les données:', userData);
-        const password = Math.random().toString(36).slice(-12); // Mot de passe aléatoire pour la sécurité
-        const response = await authApi.register({
-          email: userData.email,
-          username: userData.username,
-          password,
-          walletAddress: userData.walletAddress,
-          role: userData.role,
-          firstName: userData.firstName,
-          lastName: userData.lastName,
-          phoneNumber: userData.phoneNumber
-        });
-        
-        console.log('Réponse de l\'enregistrement:', response);
-        
-        // Mettre à jour avec les données renvoyées par le serveur
-        if (response && response.user) {
-          console.log('Utilisateur créé avec succès:', response.user);
-          setUser(response.user);
-          setIsAuthenticated(true);
-          localStorage.setItem('user', JSON.stringify(response.user));
-          return response.user;
-        }
-      } catch (error) {
-        console.error('Erreur lors de la création de l\'utilisateur:', error);
-        // Continuer avec les données locales même en cas d'échec de l'enregistrement
-      }
-      
-      // Si l'enregistrement a échoué, utiliser les données locales
-      console.log('Utilisation des données utilisateur locales');
-      setUser(userData);
-      setIsAuthenticated(true);
-      localStorage.setItem('user', JSON.stringify(userData));
-      
-      return userData;
     } catch (error) {
       console.error('Error connecting wallet:', error);
       throw error;

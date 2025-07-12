@@ -2,6 +2,75 @@
 
 A modern web application for certifying digital evidence with blockchain technology and immutable storage.
 
+## 🚀 Installation et configuration
+
+### Prérequis
+
+- Node.js 18+ et npm 9+
+- PostgreSQL 14+
+- Compte xPortal/Elrond (pour l'authentification par wallet)
+
+### Installation des dépendances
+
+```bash
+# Installer les dépendances du projet
+npm install
+
+# Installer les dépendances de développement (si nécessaire)
+npm install --include=dev
+
+# Installer les dépendances globales (si nécessaire)
+npm install -g ts-node typescript @types/node
+```
+
+### Configuration
+
+1. Copiez le fichier `.env.example` vers `.env` et configurez les variables d'environnement :
+
+```bash
+cp .env.example .env
+```
+
+2. Modifiez le fichier `.env` pour configurer votre base de données et d'autres paramètres :
+
+```env
+# Configuration de la base de données
+DATABASE_URL="postgresql://user:password@localhost:5432/proofcert?schema=public"
+
+# Clé secrète pour les JWT
+JWT_SECRET=votre_clé_secrète_très_longue_et_sécurisée
+
+# URL de l'API (pour les liens de partage)
+NEXT_PUBLIC_API_URL=http://localhost:3001
+
+# Configuration IPFS (optionnel)
+IPFS_API_URL=/ip4/127.0.0.1/tcp/5001
+IPFS_GATEWAY_URL=https://ipfs.io/ipfs/
+```
+
+### Initialisation de la base de données
+
+```bash
+# Exécuter les migrations Prisma
+npx prisma migrate dev --name init
+
+# Générer le client Prisma
+npx prisma generate
+```
+
+### Démarrage de l'application
+
+```bash
+# Mode développement (frontend + backend)
+npm run dev
+
+# Ou démarrez manuellement le backend dans un terminal séparé
+npm run server:dev
+
+# Et le frontend dans un autre terminal
+npm run dev
+```
+
 ## 🚀 Features
 
 - **Digital Proof Certification**: Capture and certify photos, videos, text, and audio files
@@ -11,6 +80,86 @@ A modern web application for certifying digital evidence with blockchain technol
 - **QR Code Sharing**: Generate QR codes for easy proof verification
 - **Modern UI**: Clean, responsive design inspired by Apple, Notion, and Linear
 - **Real-time Dashboard**: Manage and filter your certified proofs
+- **Admin Dashboard**: Manage users and access archived proofs with admin privileges
+
+## 👨‍💻 Gestion des administrateurs
+
+### Créer un nouvel administrateur
+
+Pour créer un nouvel administrateur, exécutez la commande suivante et suivez les instructions :
+
+```bash
+npm run admin:create
+```
+
+### Donner les droits d'administrateur à un utilisateur existant
+
+Pour promouvoir un utilisateur existant au rang d'administrateur, utilisez son email ou son adresse de portefeuille :
+
+```bash
+npm run admin:promote email@exemple.com
+# ou
+npm run admin:promote 0x1234...
+```
+
+### Fonctionnalités administrateur
+
+- Accès à toutes les preuves, y compris celles archivées
+- Gestion des utilisateurs (promotion/rétrogradation)
+- Visualisation des statistiques avancées
+- Accès aux journaux d'audit
+
+## 🔧 Dépannage
+
+### Problèmes de droits d'administration
+
+Si vous ne parvenez pas à accéder aux fonctionnalités d'administration :
+
+1. **Vérifiez que l'utilisateur a bien le rôle ADMIN** :
+   ```sql
+   SELECT id, email, "walletAddress", role FROM "User" WHERE email = 'email@exemple.com' OR "walletAddress" = '0x...';
+   ```
+
+2. **Vérifiez les logs du serveur** pour des erreurs d'authentification ou d'autorisation.
+
+3. **Vérifiez que le token JWT contient le bon rôle** :
+   - Allez sur [jwt.io](https://jwt.io/)
+   - Collez votre token JWT (disponible dans les outils de développement, onglet Application > Cookies)
+   - Vérifiez que le champ `role` est bien défini à `ADMIN`
+
+4. **Si vous utilisez l'authentification par wallet** :
+   - Assurez-vous que l'adresse du wallet est bien enregistrée dans la base de données
+   - Vérifiez que le header `x-wallet-address` est correctement envoyé avec les requêtes
+
+### Réinitialisation du mot de passe administrateur
+
+Si vous avez perdu l'accès à un compte administrateur :
+
+1. Connectez-vous à votre base de données PostgreSQL
+2. Exécutez la commande suivante pour réinitialiser le mot de passe :
+   ```sql
+   UPDATE "User" 
+   SET "hashedPassword" = '$2a$12$YOUR_NEW_PASSWORD_HASH' 
+   WHERE email = 'admin@example.com';
+   ```
+   Remplacez `$2a$12$YOUR_NEW_PASSWORD_HASH` par un hash bcrypt d'un mot de passe de votre choix.
+
+### Problèmes de connexion à la base de données
+
+Si vous rencontrez des erreurs de connexion à la base de données :
+
+1. Vérifiez que PostgreSQL est bien démarré
+2. Vérifiez les informations de connexion dans le fichier `.env`
+3. Assurez-vous que l'utilisateur de la base de données a les droits nécessaires
+
+### Logs de débogage
+
+Pour activer les logs de débogage, ajoutez les variables d'environnement suivantes :
+
+```env
+DEBUG=proofcert:*,prisma:query
+NODE_ENV=development
+```
 
 ## 🛠 Tech Stack
 

@@ -86,21 +86,26 @@ const AppRouter: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWalletMo
         <Route path="favorites" element={<FavoritesPage />} />
         <Route path="properties/:propertyId/proofs" element={<PropertyProofsPage />} />
         <Route path="add-property-proof/:propertyId" element={<AddPropertyProofPage />} />
-        <Route path="admin/proofs" element={
-          <PrivateRoute adminOnly={true}>
-            <AdminProofsPage />
-          </PrivateRoute>
-        } />
-        <Route path="admin/users" element={
-          <PrivateRoute adminOnly={true}>
-            <div>Admin Users - Page en construction</div>
-          </PrivateRoute>
-        } />
-        <Route path="admin-proofs" element={
-          <PrivateRoute adminOnly={true}>
-            <AdminProofsPage />
-          </PrivateRoute>
-        } />
+        <Route path="admin">
+          <Route 
+            path="proofs" 
+            element={
+              <PrivateRoute requiredRole="ADMIN">
+                <AdminProofsPage />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="users" 
+            element={
+              <PrivateRoute requiredRole="ADMIN">
+                <div>Admin Users - Page en construction</div>
+              </PrivateRoute>
+            } 
+          />
+          <Route index element={<Navigate to="/dashboard" replace />} />
+        </Route>
+        
         <Route path="*" element={<Navigate to="dashboard" replace />} />
       </Route>
       <Route path="/*" element={<PublicLayout />} />

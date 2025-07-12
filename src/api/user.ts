@@ -185,12 +185,24 @@ export const userApi = {
   getByWallet: async (walletAddress: string): Promise<{ user: User | null; role?: string }> => {
     try {
       const res = await api.get(`/users/by-wallet/${walletAddress}`);
-      if (res.data && res.data.success && res.data.exists) {
-        return { user: res.data.data, role: res.data.data?.role };
+      
+      if (res.data?.success) {
+        if (res.data.exists && res.data.data) {
+          return { 
+            user: res.data.data, 
+            role: res.data.data.role 
+          };
+        }
+      } else {
+        console.log('Invalid response format from API');
       }
       return { user: null };
     } catch (error) {
-      console.error('Error fetching user by wallet:', error);
+      // Ne pas logger les erreurs 404 car c'est un cas attendu
+      const axiosError = error as { response?: { status?: number } };
+      if (axiosError.response?.status !== 404) {
+        console.error('Error fetching user by wallet:', error);
+      }
       return { user: null };
     }
   },

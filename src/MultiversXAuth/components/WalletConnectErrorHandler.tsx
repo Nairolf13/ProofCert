@@ -16,19 +16,19 @@ export const WalletConnectErrorHandler: React.FC<WalletConnectErrorHandlerProps>
       const errorMessage = args.join(' ');
       
       // Détecter les erreurs WalletConnect
-      if (
-        errorMessage.includes('Pending session not found') || 
-        errorMessage.includes('Session not found') ||
-        errorMessage.includes('Invalid session') ||
-        errorMessage.includes('No matching key') ||
-        errorMessage.includes('Pairing not found') ||
-        errorMessage.includes('Topic not found')
-      ) {
+      const walletConnectErrors = [
+        'Pending session not found',
+        'Session not found',
+        'Invalid session',
+        'No matching key',
+        'Pairing not found',
+        'Topic not found'
+      ];
+
+      if (walletConnectErrors.some(error => errorMessage.includes(error))) {
         errorCount++;
-        console.warn(`WalletConnect error detected (${errorCount}/${maxErrors}):`, errorMessage);
         
         if (errorCount >= maxErrors) {
-          console.warn('Too many WalletConnect errors, forcing reset...');
           forceResetWalletConnection();
         } else {
           clearWalletConnectSessions();
@@ -42,25 +42,25 @@ export const WalletConnectErrorHandler: React.FC<WalletConnectErrorHandlerProps>
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       const errorMessage = event.reason?.message || '';
       
-      if (
-        errorMessage.includes('Pending session not found') ||
-        errorMessage.includes('Session not found') ||
-        errorMessage.includes('Invalid session') ||
-        errorMessage.includes('No matching key') ||
-        errorMessage.includes('Pairing not found') ||
-        errorMessage.includes('Topic not found')
-      ) {
+      const walletConnectErrors = [
+        'Pending session not found',
+        'Session not found',
+        'Invalid session',
+        'No matching key',
+        'Pairing not found',
+        'Topic not found'
+      ];
+
+      if (walletConnectErrors.some(error => errorMessage.includes(error))) {
         errorCount++;
-        console.warn(`WalletConnect promise rejection (${errorCount}/${maxErrors}):`, errorMessage);
         
         if (errorCount >= maxErrors) {
-          console.warn('Too many WalletConnect errors, forcing reset...');
           forceResetWalletConnection();
         } else {
           clearWalletConnectSessions();
         }
         
-        event.preventDefault(); // Empêcher l'affichage de l'erreur
+        event.preventDefault();
       }
     };
 
@@ -68,16 +68,16 @@ export const WalletConnectErrorHandler: React.FC<WalletConnectErrorHandlerProps>
     const handleError = (event: ErrorEvent) => {
       const errorMessage = event.message || '';
       
-      if (
-        errorMessage.includes('Pending session not found') ||
-        errorMessage.includes('Session not found') ||
-        errorMessage.includes('Invalid session')
-      ) {
+      const walletConnectErrors = [
+        'Pending session not found',
+        'Session not found',
+        'Invalid session'
+      ];
+
+      if (walletConnectErrors.some(error => errorMessage.includes(error))) {
         errorCount++;
-        console.warn(`WalletConnect window error (${errorCount}/${maxErrors}):`, errorMessage);
         
         if (errorCount >= maxErrors) {
-          console.warn('Too many WalletConnect errors, forcing reset...');
           forceResetWalletConnection();
         } else {
           clearWalletConnectSessions();
@@ -98,14 +98,21 @@ export const WalletConnectErrorHandler: React.FC<WalletConnectErrorHandlerProps>
         );
         
         if (hasWalletConnectData) {
-          console.log('Found WalletConnect data on startup, checking validity...');
-          // Si on a des données WalletConnect mais des erreurs, nettoyer
-          setTimeout(() => {
-            if (errorCount > 0) {
-              console.log('Errors detected, cleaning WalletConnect sessions...');
-              clearWalletConnectSessions();
+          // Vérifier si nous avons des données corrompues
+          const hasErrors = Object.entries(localStorage).some(([key, value]) => {
+            if (!key.includes('walletconnect') && !key.includes('wc@2')) return false;
+            
+            try {
+              JSON.parse(value);
+              return false;
+            } catch {
+              return true;
             }
-          }, 2000);
+          });
+          
+          if (hasErrors) {
+            clearWalletConnectSessions();
+          }
         }
       } catch (error) {
         console.error('Error checking WalletConnect data on startup:', error);

@@ -22,11 +22,23 @@ export const proofsApi = {
       throw new Error(getErrorMessage(error, 'Failed to create proof'));
     }
   },
-  getAll: async (headers?: Record<string, string>): Promise<Proof[]> => {
+  getAll: async (headers?: Record<string, string>, includeDeleted: boolean = false): Promise<Proof[]> => {
     try {
-      const response = await api.get('/proofs', { headers });
+      const params: Record<string, string> = {};
+      
+      // Si on doit inclure les preuves supprimées, on l'ajoute aux paramètres de requête
+      if (includeDeleted) {
+        params.includeDeleted = 'true';
+      }
+      
+      const response = await api.get('/proofs', { 
+        headers,
+        params
+      });
+      
       return response.data;
     } catch (error) {
+      console.error('Error fetching proofs:', error);
       throw new Error(getErrorMessage(error, 'Failed to fetch proofs'));
     }
   },

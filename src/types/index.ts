@@ -47,6 +47,7 @@ export interface Proof {
   isPublic: boolean;
   shareToken: string;
   userId: string;
+  walletAddress?: string; // Ajout du champ walletAddress
   user?: User;
   createdAt: string;
   updatedAt: string;
