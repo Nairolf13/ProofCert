@@ -5,6 +5,7 @@ import { UserIcon, WalletIcon, CalendarIcon, ArrowRightOnRectangleIcon, CameraIc
 import { Link, useNavigate } from 'react-router-dom';
 import { useMultiversXAuth } from '../hooks/useMultiversXAuth';
 import { useAuthContext } from '../hooks/AuthContext';
+import { userApi } from '../api/user';
 import type { User } from '../types';
 
 const ProfilePage: React.FC = () => {
@@ -35,63 +36,186 @@ const ProfilePage: React.FC = () => {
     navigate('/');
   };
 
-  // Définir un type pour l'utilisateur avec des champs optionnels
-  type ProfileUser = {
-    id?: string;
-    email: string;
-    username?: string;
-    name: string;
-    avatar?: string | null;
-    profileImage?: string | null;
-    walletAddress?: string;
-    address?: string;
-    role?: 'OWNER' | 'TENANT' | 'ADMIN' | string;
-    createdAt?: string;
-    updatedAt?: string;
+  // Fonction utilitaire pour valider le rôle
+  const getValidRole = (role: string | undefined): 'OWNER' | 'TENANT' | 'ADMIN' | undefined => {
+    const validRoles = ['OWNER', 'TENANT', 'ADMIN'] as const;
+    return validRoles.includes(role as any) ? role as 'OWNER' | 'TENANT' | 'ADMIN' : 'ADMIN';
+  };
+
+  // Extension du type User avec des propriétés supplémentaires pour le profil
+  interface ProfileUser extends Omit<User, 'role'> {
+    name: string; // Ajout du champ name qui est optionnel dans User
+    avatar?: string; // Alias pour profileImage
+    walletAddress: string; // Rendons walletAddress obligatoire pour le profil
+    role: 'OWNER' | 'TENANT' | 'ADMIN'; // Rendre le rôle obligatoire avec un type restreint
     [key: string]: any; // Pour les propriétés dynamiques comme 'phone'
   };
 
-  // Récupérer les informations de l'utilisateur
-  const user: ProfileUser | null = (() => {
-    if (isLoggedIn && account) {
-      return {
-        id: account.address, // Utiliser l'adresse comme ID pour les utilisateurs wallet
-        email: account.address,
-        username: account.username || 'Utilisateur Wallet',
-        name: account.username || 'Utilisateur Wallet',
-        avatar: undefined,
-        profileImage: undefined,
-        role: 'ADMIN', // Par défaut pour les utilisateurs wallet
-        walletAddress: account.address,
-        address: account.address,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-    }
-    
-    if (authUser) {
-      return {
-        ...authUser,
-        name: authUser.username || 'Utilisateur',
-        avatar: authUser.profileImage,
-        profileImage: authUser.profileImage,
-        walletAddress: authUser.walletAddress || '',
-        address: authUser.address
-      };
-    }
-    
-    return null;
-  })();
+  // État pour stocker les données utilisateur récupérées
+  const [userData, setUserData] = useState<ProfileUser | null>(null);
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Récupérer les informations de l'utilisateur depuis l'API
+  useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
+
+    const fetchUserData = async () => {
+      if (!isMounted) return;
+      
+      try {
+        setIsLoadingUser(true);
+        setError(null);
+        
+        if (isLoggedIn && account?.address) {
+          console.log('Récupération des données utilisateur pour le wallet:', account.address);
+          
+          // Récupérer l'utilisateur depuis l'API en utilisant l'adresse du wallet
+          const userFromApi = await userApi.getByWallet(account.address);
+          
+          if (!isMounted) return;
+          
+          if (userFromApi) {
+            console.log('Utilisateur trouvé dans la base de données:', userFromApi);
+            
+            // Créer un objet utilisateur avec des valeurs par défaut sécurisées
+            const userData: ProfileUser = {
+              // Propriétés de base requises
+              id: userFromApi.id || account.address,
+              email: userFromApi.email || `${account.address.slice(0, 8)}...@wallet`,
+              username: userFromApi.username || `user_${account.address.slice(0, 8)}`,
+              
+              // Propriétés avec valeurs par défaut
+              name: (userFromApi as any).name || userFromApi.username || `User ${account.address.slice(0, 6)}`,
+              avatar: (userFromApi as any).avatar || userFromApi.profileImage,
+              profileImage: userFromApi.profileImage,
+              
+              // Propriétés liées au wallet
+              walletAddress: account.address,
+              address: account.address,
+              
+              // Rôle et métadonnées avec validation stricte
+              role: getValidRole(userFromApi.role) || 'ADMIN',
+              
+              // Propriétés avec gestion des valeurs par défaut
+              createdAt: userFromApi.createdAt || new Date().toISOString(),
+              updatedAt: userFromApi.updatedAt || new Date().toISOString(),
+              
+              // Copier les propriétés supplémentaires qui pourraient être présentes
+              ...(userFromApi as Omit<typeof userFromApi, 'id' | 'email' | 'username' | 'profileImage' | 'role' | 'createdAt' | 'updatedAt'>)
+            };
+            
+
+            
+            console.log('Données utilisateur formatées:', userData);
+            setUserData(userData);
+          } else {
+            // Si l'utilisateur n'existe pas encore en base
+            console.log('Création d\'un profil par défaut pour le wallet');
+            const defaultUser: ProfileUser = {
+              id: account.address,
+              email: `${account.address.slice(0, 8)}...@wallet`,
+              username: `user_${account.address.slice(0, 8)}`,
+              name: `User ${account.address.slice(0, 6)}`,
+              walletAddress: account.address,
+              address: account.address,
+              role: 'ADMIN',
+              profileImage: undefined,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            };
+            setUserData(defaultUser);
+          }
+        } else if (authUser) {
+          // Utilisateur authentifié de manière classique
+          console.log('Utilisation des données utilisateur classiques');
+          const authUserData: ProfileUser = {
+            ...authUser,
+            name: authUser.username || 'Utilisateur',
+            avatar: authUser.profileImage,
+            profileImage: authUser.profileImage,
+            walletAddress: authUser.walletAddress || '',
+            address: authUser.address || '',
+            role: getValidRole(authUser.role) || 'ADMIN' // Utiliser la fonction getValidRole pour s'assurer que le rôle est valide
+          };
+          setUserData(authUserData);
+        } else {
+          console.log('Aucun utilisateur connecté');
+          setUserData(null);
+        }
+      } catch (err) {
+        if (isMounted) {
+          console.error('Erreur lors de la récupération des données utilisateur:', err);
+          setError('Impossible de charger les informations du profil. Veuillez réessayer plus tard.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingUser(false);
+        }
+      }
+    };
+
+    // Démarrer la récupération des données
+    fetchUserData();
+
+    // Nettoyage
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [isLoggedIn, account, authUser]);
+
+  // Utiliser userData comme source de vérité pour l'affichage
+  const user = userData;
 
   // Vérifier si l'utilisateur est connecté
   const isUserAuthenticated = isLoggedIn || isAuthenticated;
   
   // Afficher le chargement si nécessaire
-  if (isLoading || isAuthLoading) {
+  if (isLoading || isAuthLoading || isLoadingUser) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-      </div>
+      <ImmersiveLayout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary mb-4"></div>
+          <p className="text-gray-600">Chargement de votre profil...</p>
+          <p className="text-sm text-gray-500 mt-2">Veuillez patienter</p>
+        </div>
+      </ImmersiveLayout>
+    );
+  }
+  
+  // Afficher les erreurs
+  if (error) {
+    return (
+      <ImmersiveLayout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] p-4 text-center">
+          <div className="bg-red-100 p-4 rounded-full mb-4">
+            <UserIcon className="w-12 h-12 text-red-500" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Oups !</h2>
+          <p className="text-gray-600 mb-6 max-w-md">
+            {error}
+            <br />
+            <span className="text-sm">Si le problème persiste, contactez le support.</span>
+          </p>
+          <div className="flex gap-4">
+            <Button 
+              onClick={() => window.location.reload()}
+              className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition"
+            >
+              Réessayer
+            </Button>
+            <Button 
+              onClick={() => navigate('/')}
+              variant="outline"
+              className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+            >
+              Retour à l'accueil
+            </Button>
+          </div>
+        </div>
+      </ImmersiveLayout>
     );
   }
 

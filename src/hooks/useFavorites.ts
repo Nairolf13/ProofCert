@@ -22,8 +22,11 @@ export const useFavorites = () => {
         setIsLoading(true);
         setError(null);
         const favoritesData = await favoritesApi.getAll();
-        setFavorites(favoritesData);
+        // S'assurer que favoritesData est un tableau
+        const safeFavorites = Array.isArray(favoritesData) ? favoritesData : [];
+        setFavorites(safeFavorites);
       } catch (error) {
+        console.error('Erreur lors du chargement des favoris:', error);
         setError('Erreur lors du chargement des favoris');
         setFavorites([]);
       } finally {
@@ -93,12 +96,16 @@ export const useFavorites = () => {
 
   // Obtenir les favoris avec les données des propriétés
   const getFavoritesWithProperties = (): Favorite[] => {
-    return favorites;
+    // S'assurer de toujours retourner un tableau
+    return Array.isArray(favorites) ? favorites : [];
   };
 
+  // S'assurer que favorites est toujours un tableau avant d'utiliser map
+  const safeFavorites = Array.isArray(favorites) ? favorites : [];
+  
   return {
-    favorites: favorites.map(fav => fav.propertyId), // Pour compatibilité avec l'ancien code
-    favoritesData: favorites, // Nouveaux favoris avec données complètes
+    favorites: safeFavorites.map(fav => fav.propertyId), // Pour compatibilité avec l'ancien code
+    favoritesData: safeFavorites, // Nouveaux favoris avec données complètes
     isLoading,
     error,
     addToFavorites,
