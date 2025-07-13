@@ -1,12 +1,12 @@
-import express from 'express';
-import { corsMiddleware } from './middlewares/cors';
-import authRoutes from './routes/auth';
-import proofsRoutes from './routes/proofs';
-import favoritesRoutes from './routes/favorites';
+import express, { Request, Response, NextFunction } from 'express';
+import { corsMiddleware } from './middlewares/cors.js';
+import authRoutes from './routes/auth.js';
+import proofsRoutes from './routes/proofs.js';
+import favoritesRoutes from './routes/favorites.js';
 import helmet from 'helmet';
 import cookie from 'cookie';
-import propertyRentalRouter from './routes/propertyRental';
-import userRoutes from './routes/user';
+import propertyRentalRouter from './routes/propertyRental.js';
+import userRoutes from './routes/user.js';
 // Configuration des chemins de fichiers
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';

@@ -1,7 +1,7 @@
 import cors from 'cors';
 
 export const corsMiddleware = cors({
-  origin: function (origin, callback) {
+  origin: function (origin: string | undefined, callback: (error: Error | null, success?: boolean) => void) {
     // Permettre les requêtes sans origin (ex: applications mobiles)
     if (!origin) return callback(null, true);
     

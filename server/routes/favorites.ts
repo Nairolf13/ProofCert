@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { authenticateToken } from '../middlewares/authenticateToken.ts';
+import { authenticateToken } from '../middlewares/authenticateToken.js';
 import type { Response } from 'express';
 
 const router = Router();
@@ -8,10 +8,10 @@ const prisma = new PrismaClient();
 
 router.use(authenticateToken);
 
-// @ts-expect-error Express 5 async handler type workaround
 router.get('/', async (req, res: Response) => {
   try {
     const userId = req.user?.id;
+    
     if (!userId) {
       return res.status(401).json({ error: 'Utilisateur non authentifié' });
     }
@@ -47,7 +47,6 @@ router.get('/', async (req, res: Response) => {
   }
 });
 
-// @ts-expect-error Express 5 async handler type workaround
 router.post('/', async (req, res: Response) => {
   try {
     const userId = req.user?.id;
@@ -111,7 +110,6 @@ router.post('/', async (req, res: Response) => {
   }
 });
 
-// @ts-expect-error Express 5 async handler type workaround
 router.delete('/:propertyId', async (req, res: Response) => {
   try {
     const userId = req.user?.id;
@@ -149,7 +147,6 @@ router.delete('/:propertyId', async (req, res: Response) => {
   }
 });
 
-// @ts-expect-error Express 5 async handler type workaround
 router.get('/check/:propertyId', async (req, res: Response) => {
   try {
     const userId = req.user?.id;
@@ -174,7 +171,6 @@ router.get('/check/:propertyId', async (req, res: Response) => {
   }
 });
 
-// @ts-expect-error Express 5 async handler type workaround
 router.post('/toggle', async (req, res: Response) => {
   try {
     const userId = req.user?.id;

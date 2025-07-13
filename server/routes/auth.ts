@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit';
 import { generateAccessToken, generateRefreshToken } from '../utils/jwt.ts';
 import { hashToken, compareToken } from '../utils/hash.ts';
 import propertyRentalRouter from './propertyRental.ts';
+import type { Request, Response } from 'express';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -199,5 +200,36 @@ router.patch('/role', authenticateToken, async (req, res) => {
 
 // Ajoute ce router à l'export (à utiliser dans server.ts)
 export { propertyRentalRouter };
+
+// Endpoint pour récupérer les informations de l'utilisateur connecté
+router.get('/me', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Non authentifié' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        walletAddress: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Utilisateur non trouvé' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    console.error('Erreur lors de la récupération du profil:', error);
+    res.status(500).json({ error: 'Erreur serveur lors de la récupération du profil' });
+  }
+});
 
 export default router;

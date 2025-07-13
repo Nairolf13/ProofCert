@@ -183,7 +183,7 @@ const ProfilePage: React.FC = () => {
         </div>
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-4 w-full mt-8">
-          <Link to="/favorites" className="w-full sm:w-auto flex-1">
+          <Link to="/app/favorites" className="w-full sm:w-auto flex-1">
             <Button 
               variant="secondary" 
               className="w-full text-lg font-bold border-2 border-red-200 text-red-600 hover:bg-red-50"

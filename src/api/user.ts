@@ -21,7 +21,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('authToken');
+  const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -79,25 +79,26 @@ api.interceptors.response.use(
       try {
         // Call refresh endpoint (must send cookies)
         const refreshResponse = await axios.post(
-          API_BASE_URL + '/auth/refresh',
+          `${API_BASE_URL}/auth/refresh`,
           {},
           { withCredentials: true }
         );
-        console.log('[JWT REFRESH]', {
-          url: API_BASE_URL + '/auth/refresh',
-          response: refreshResponse.data,
-          cookies: document.cookie
-        });
+        
         const { accessToken: newToken } = refreshResponse.data;
-        localStorage.setItem('authToken', newToken);
-        api.defaults.headers.common['Authorization'] = 'Bearer ' + newToken;
+        localStorage.setItem('token', newToken);
+        api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
         processQueue(null, newToken);
-        return api({ ...originalRequest, headers: { ...originalRequest.headers, Authorization: 'Bearer ' + newToken } });
+        return api({ 
+          ...originalRequest, 
+          headers: { 
+            ...originalRequest.headers, 
+            Authorization: `Bearer ${newToken}` 
+          } 
+        });
       } catch (refreshError) {
-        console.error('[JWT REFRESH ERROR]', refreshError);
         processQueue(refreshError, null);
         // Logout user if refresh fails
-        localStorage.removeItem('authToken');
+        localStorage.removeItem('token');
         localStorage.removeItem('user');
         window.location.href = '/login';
         return Promise.reject(refreshError);

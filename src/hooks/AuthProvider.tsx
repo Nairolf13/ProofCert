@@ -1,13 +1,48 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { AuthContext } from './AuthContext';
 import type { AuthContextProps } from './AuthContext';
 import type { User, RegisterRequest, LoginRequest } from '../types';
 import * as authApi from '../api/auth';
+import { API_BASE_URL } from '../config';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(true); // Initialisé à true pour le chargement initial
+
+  // Vérifier l'authentification au chargement initial
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (token) {
+          // Vérifier la validité du token avec le backend
+          const res = await fetch(`${API_BASE_URL}/auth/me`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (res.ok) {
+            const userData = await res.json();
+            setUser(userData);
+            setIsAuthenticated(true);
+          } else {
+            throw new Error('Session expirée');
+          }
+        }
+      } catch (error) {
+        // En cas d'erreur, déconnecter l'utilisateur
+        localStorage.removeItem('token');
+        setUser(null);
+        setIsAuthenticated(false);
+      } finally {
+        setIsAuthLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
 
   const login = useCallback(async (data: LoginRequest) => {
     setIsAuthLoading(true);
@@ -15,6 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await authApi.login(data);
       setUser(res.user);
       setIsAuthenticated(true);
+      localStorage.setItem('token', res.token); // Stocker le token
     } finally {
       setIsAuthLoading(false);
     }
