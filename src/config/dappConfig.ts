@@ -2,10 +2,29 @@
 export const dAppConfig = {
   chainId: 'D', // Devnet
   environment: 'devnet' as const,
-  walletConnectV2ProjectId: 'demo-project-id', // Remplacez par votre vrai Project ID WalletConnect
+  walletConnectV2ProjectId: '9b1a8274d7d546f4bfdca986fcdc5a3c', // Project ID WalletConnect
   apiUrl: 'https://devnet-api.multiversx.com',
   explorerUrl: 'https://devnet-explorer.multiversx.com',
-  walletAddress: 'https://devnet-wallet.multiversx.com'
+  walletAddress: 'https://devnet-wallet.multiversx.com',
+  // Configuration additionnelle pour WalletConnect
+  walletConnect: {
+    bridge: 'https://bridge.walletconnect.org',
+    qrCodeModalOptions: {
+      desktopLinks: [],
+      mobileLinks: ['xPortal', 'metamask'],
+      themeVariables: {
+        '--wcm-z-index': '9999',
+        '--wcm-background-color': '#ffffff',
+        '--wcm-accent-color': '#23f7dd',
+      },
+    },
+    getMetadata: () => ({
+      name: 'ProofCert',
+      description: 'ProofCert - Plateforme de certification immobilière',
+      url: typeof window !== 'undefined' ? window.location.origin : '',
+      icons: typeof window !== 'undefined' ? [`${window.location.origin}/logo192.png`] : []
+    })
+  }
 };
 
 // Configuration des providers réels

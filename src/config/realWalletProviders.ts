@@ -200,24 +200,91 @@ class ProofEstateExtensionProvider implements RealWalletProvider {
   }
 }
 
-// Classe pour wrapper WalletConnect (version simplifiée)
+// Classe pour wrapper WalletConnect
 class ProofEstateWalletConnectProvider implements RealWalletProvider {
   public id = 'wallet-connect';
-  public name = 'WalletConnect';
+  public name = 'xPortal (WalletConnect)';
   public icon = '📱';
   private isWalletConnected = false;
+  private walletConnectProvider: any = null;
+  private account: MultiversXAccount | null = null;
+
+  private async initWalletConnect() {
+    if (typeof window === 'undefined') return;
+    
+    // Importer dynamiquement le SDK WalletConnect
+    const { WalletConnectV2Provider } = await import('@multiversx/sdk-wallet-connect-provider/out/walletConnectV2Provider');
+    
+    // Créer une nouvelle instance du provider
+    this.walletConnectProvider = new WalletConnectV2Provider(
+      dAppConfig.walletConnectV2ProjectId,
+      dAppConfig.walletConnect.getMetadata()
+    );
+    
+    // Configurer les écouteurs d'événements
+    this.walletConnectProvider.on('loginRejected', () => {
+      console.log('WalletConnect login rejected');
+      this.isWalletConnected = false;
+      this.account = null;
+    });
+    
+    this.walletConnectProvider.on('logout', () => {
+      console.log('WalletConnect logout');
+      this.isWalletConnected = false;
+      this.account = null;
+    });
+    
+    return this.walletConnectProvider;
+  }
 
   async connect(): Promise<MultiversXAccount> {
     try {
-      // En mode développement, simuler WalletConnect
-      if (process.env.NODE_ENV === 'development') {
-        console.log('DEV MODE: Simulating WalletConnect');
-        const mockAccount = await fetchAccountInfo('erd1l453hd0gt5gzdp7czpuall8ggt2dcv5zwmfdf3sd3lguxseux2fsmsgldz');
-        this.isWalletConnected = true;
-        return mockAccount;
+      if (!this.walletConnectProvider) {
+        await this.initWalletConnect();
       }
       
-      throw new Error('WalletConnect implementation coming soon');
+      // Vérifier si une session existe déjà
+      if (this.walletConnectProvider && await this.walletConnectProvider.isInitialized()) {
+        const address = await this.walletConnectProvider.getAddress();
+        if (address) {
+          this.account = await fetchAccountInfo(address);
+          this.isWalletConnected = true;
+          return this.account;
+        }
+      }
+      
+      // Si pas de session, en démarrer une nouvelle
+      if (this.walletConnectProvider) {
+        const callbackUrl = typeof window !== 'undefined' ? window.location.href : '';
+        const { uri, approval } = await this.walletConnectProvider.connect({
+          callbackUrl,
+          chainId: 'D' // Devnet
+        });
+        
+        // Afficher le QR code si sur mobile
+        if (uri) {
+          const qrCodeModal = (await import('@walletconnect/qrcode-modal')).default;
+          qrCodeModal.open(uri, () => {
+            console.log('QR Code Modal closed');
+          });
+        }
+        
+        // Attendre que l'utilisateur approuve la connexion
+        await approval();
+        
+        // Fermer le modal QR code
+        const qrCodeModal = (await import('@walletconnect/qrcode-modal')).default;
+        qrCodeModal.close();
+        
+        // Récupérer l'adresse et les infos du compte
+        const address = await this.walletConnectProvider.getAddress();
+        this.account = await fetchAccountInfo(address);
+        this.isWalletConnected = true;
+        
+        return this.account;
+      }
+      
+      throw new Error('Failed to initialize WalletConnect');
     } catch (error) {
       console.error('WalletConnect connection error:', error);
       throw error;
@@ -225,31 +292,37 @@ class ProofEstateWalletConnectProvider implements RealWalletProvider {
   }
 
   async disconnect(): Promise<void> {
+    if (this.walletConnectProvider) {
+      try {
+        await this.walletConnectProvider.logout();
+      } catch (error) {
+        console.error('Error disconnecting WalletConnect:', error);
+      }
+    }
     this.isWalletConnected = false;
+    this.account = null;
   }
 
   isConnected(): boolean {
-    return this.isWalletConnected;
+    return this.isWalletConnected && this.account !== null;
   }
 
   async signTransaction(transaction: MultiversXTransaction): Promise<MultiversXTransaction> {
-    if (!this.isConnected()) {
+    if (!this.isConnected() || !this.walletConnectProvider) {
       throw new Error('WalletConnect not connected');
     }
     
-    // En mode développement, simuler la signature
-    if (process.env.NODE_ENV === 'development') {
-      return {
-        ...transaction,
-        signature: 'wc_signature_' + Date.now(),
-      };
+    try {
+      const signedTx = await this.walletConnectProvider.signTransaction(transaction);
+      return signedTx;
+    } catch (error) {
+      console.error('Error signing transaction with WalletConnect:', error);
+      throw error;
     }
-    
-    throw new Error('WalletConnect signing not implemented yet');
   }
 
   getProvider() {
-    return null; // WalletConnect provider à implémenter
+    return this.walletConnectProvider;
   }
 }
 
