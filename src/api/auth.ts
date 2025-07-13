@@ -23,36 +23,6 @@ export async function login({ emailOrUsername, password }: { emailOrUsername: st
   return data;
 }
 
-export async function getCurrentUser() {
-  try {
-    const token = localStorage.getItem('token');
-    if (!token) return null;
-    
-    const res = await fetch(`${API_BASE_URL}/auth/me`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      credentials: 'include'
-    });
-    
-    if (!res.ok) {
-      if (res.status === 401) {
-        // Token invalide ou expiré
-        localStorage.removeItem('token');
-      }
-      throw new Error('Erreur lors de la récupération des informations utilisateur');
-    }
-    
-    return await res.json();
-  } catch (error) {
-    console.error('Erreur dans getCurrentUser:', error);
-    throw error;
-  }
-}
-
 export async function logout() {
   try {
     const res = await fetch(`${API_BASE_URL}/auth/logout`, {

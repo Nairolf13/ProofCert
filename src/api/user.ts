@@ -15,19 +15,13 @@ const API_BASE_URL = getApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  headers: { 
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
-  },
-  timeout: 30000, // Augmentation du timeout à 30 secondes
-  withCredentials: true, // Enable credentials (cookies) for all requests
-  validateStatus: (status) => status >= 200 && status < 500 // Considérer les réponses 4xx comme valides
+  headers: { 'Content-Type': 'application/json' },
+  timeout: 15000,
+  withCredentials: true // Enable credentials (cookies) for all requests
 });
 
 api.interceptors.request.use((config) => {
-  // Vérifier d'abord 'authToken' (utilisé par la méthode login)
-  // puis 'token' pour la rétrocompatibilité
-  const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+  const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -142,8 +136,7 @@ export const userApi = {
         password: loginData.password,
       });
       const { user, token } = response.data;
-      // Stocker le token sous la clé 'token' pour la cohérence
-      localStorage.setItem('token', token);
+      localStorage.setItem('authToken', token);
       localStorage.setItem('user', JSON.stringify(user));
       return { user, token };
     } catch (error) {
@@ -162,30 +155,13 @@ export const userApi = {
   },
   getCurrentUser: async (): Promise<User | null> => {
     try {
-      // Vérifier d'abord 'token' puis 'authToken' pour la rétrocompatibilité
-      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+      const token = localStorage.getItem('authToken');
       if (!token) return null;
-      
-      const response = await api.get('/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (response.status === 200 && response.data) {
-        const user = response.data.user || response.data;
-        localStorage.setItem('user', JSON.stringify(user));
-        return user;
-      }
-      
-      // Si la réponse n'est pas valide, supprimer le token
-      localStorage.removeItem('token');
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('user');
-      return null;
-    } catch (error) {
-      console.error('Erreur lors de la récupération de l\'utilisateur:', error);
-      localStorage.removeItem('token');
+      const response = await api.get('/auth/me');
+      const { user } = response.data;
+      localStorage.setItem('user', JSON.stringify(user));
+      return user;
+    } catch {
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
       return null;
@@ -211,28 +187,9 @@ export const userApi = {
   },
   getByWallet: async (walletAddress: string): Promise<User | null> => {
     try {
-      const res = await api.get(`/users/by-wallet/${walletAddress}`, {
-        timeout: 10000 // Timeout spécifique pour cette requête
-      });
-      
-      if (res.status === 404) {
-        console.log('Aucun utilisateur trouvé pour ce wallet');
-        return null;
-      }
-      
-      if (res.status !== 200) {
-        console.error('Erreur lors de la récupération de l\'utilisateur:', res.status, res.statusText);
-        return null;
-      }
-      
-      // Vérifier si la réponse contient une propriété data avec les données utilisateur
-      if (res.data && typeof res.data === 'object' && 'data' in res.data) {
-        return res.data.data; // Retourner directement l'objet utilisateur
-      }
-      
+      const res = await api.get(`/users/by-wallet/${walletAddress}`);
       return res.data;
-    } catch (error) {
-      console.error('Erreur lors de la récupération de l\'utilisateur par wallet:', error);
+    } catch {
       return null;
     }
   },
