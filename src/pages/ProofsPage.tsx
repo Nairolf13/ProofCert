@@ -34,15 +34,17 @@ function getProofIcon(contentType: ProofType) {
 }
 
 export const ProofsPage: React.FC = () => {
-  const { proofs, isLoading } = useProofs();
+  const { proofs, isLoading } = useProofs({ filterByUser: true });
   const { user: classicUser } = useAuthContext();
   const { user: web3User } = useMultiversXAuth();
-  const filteredProofs = proofs.filter(
-    p =>
-      (classicUser && p.userId === classicUser.id) ||
-      (web3User && p.userId === web3User.address)
-  );
 
+  // Ajout de logs pour le débogage
+  console.log('📋 ProofsPage - Données des preuves:', {
+    nbProofs: proofs.length,
+    classicUserId: classicUser?.id,
+    web3UserAddress: web3User?.address,
+    isWeb3LoggedIn: !!web3User
+  });
 
   return (
     <ImmersiveLayout>
@@ -69,12 +71,17 @@ export const ProofsPage: React.FC = () => {
               <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-pink-400 mb-6"></div>
               <p className="text-gray-600 text-xl font-serif">Chargement des preuves...</p>
             </div>
-          ) : filteredProofs.length === 0 ? (
+          ) : proofs.length === 0 ? (
             <div className="col-span-full text-center text-secondary text-2xl font-serif py-24">
               Aucune preuve pour le moment.
+              <div className="mt-4 text-base text-gray-500">
+                {web3User?.address && (
+                  <p>Adresse du wallet connecté: {web3User.address}</p>
+                )}
+              </div>
             </div>
           ) : (
-            filteredProofs.map((proof) => (
+            proofs.map((proof) => (
               <Link key={proof.id} to={`/proof/${proof.id}`} className="group">
                 <div className="relative card-shadow rounded-3xl p-8 flex flex-col gap-4 transition-all duration-300 hover:scale-[1.015] cursor-pointer">
                   <div className="absolute -inset-2 rounded-3xl bg-primary-light opacity-20 blur-lg -z-10" />

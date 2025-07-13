@@ -200,27 +200,17 @@ export const useMultiversXAuth = () => {
       let userData = await fetchUserByWallet(walletAddress);
       console.log('📥 Données retournées par fetchUserByWallet:', userData);
       
-      // Si pas d'utilisateur trouvé, créer un profil par défaut
+      // Si pas d'utilisateur trouvé, cela ne devrait pas arriver car le backend en crée un maintenant
       if (!userData) {
-        console.log('ℹ️ Aucun utilisateur trouvé pour cette adresse, création d\'un profil par défaut');
-        userData = {
-          id: walletAddress,
-          role: 'USER',
-          address: walletAddress,
-          balance: '0',
-          nonce: 0,
-          username: `user_${walletAddress.slice(0, 8)}`,
-          shard: 0,
-          walletAddress: walletAddress,
-          email: `${walletAddress.slice(0, 8)}@wallet`,
-          name: `User ${walletAddress.slice(0, 6)}`,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-        console.log('👤 Création d\'un profil par défaut pour le wallet');
-      } else {
-        console.log('✅ Données utilisateur récupérées avec succès');
+        console.error('❌ Aucun utilisateur trouvé malgré la création automatique');
+        throw new Error('Failed to create or retrieve user');
       }
+      
+      console.log('✅ Données utilisateur récupérées avec succès:', {
+        id: userData.id,
+        username: userData.username,
+        role: userData.role
+      });
       
       console.log('📊 Données utilisateur à enregistrer:', userData);
       
@@ -401,8 +391,9 @@ export const useMultiversXAuth = () => {
     };
   }, [isWalletConnected, address, loadUserData, account?.balance, account?.nonce, account?.username, account?.shard]);
 
-  // L'utilisateur est considéré comme connecté s'il est connecté via wallet ou via l'authentification classique
-  const isLoggedIn = isWalletConnected || !!userData?.id;
+  // L'utilisateur est considéré comme connecté s'il est connecté via wallet avec un ID valide
+  const isLoggedIn = (isWalletConnected && !!userData?.id) || 
+                   (!isWalletConnected && !!userData?.id && !!localStorage.getItem('token'));
 
   return {
     // Authentification state
@@ -427,15 +418,6 @@ export const useMultiversXAuth = () => {
     
     // Computed values
     walletAddress: userData?.walletAddress || address,
-    user: userData || (isWalletConnected && account ? {
-      id: undefined,
-      role: undefined,
-      address,
-      balance: account.balance?.toString() || '0',
-      nonce: account.nonce || 0,
-      username: account.username || null,
-      shard: account.shard || 0,
-      walletAddress: address
-    } : null)
+    user: userData || null
   };
 };

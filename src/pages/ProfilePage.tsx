@@ -45,10 +45,10 @@ const ProfilePage: React.FC = () => {
     profileImage?: string | null;
     walletAddress?: string;
     address?: string;
+    phone?: string;
     role?: 'OWNER' | 'TENANT' | 'ADMIN' | string;
     createdAt?: string;
     updatedAt?: string;
-    [key: string]: any; // Pour les propriétés dynamiques comme 'phone'
   };
 
   // Récupérer les informations de l'utilisateur
