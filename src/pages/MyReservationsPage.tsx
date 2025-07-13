@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useRentals } from '../hooks/useRentals';
 import { useMultiversXAuth } from '../hooks/useMultiversXAuth';
+import { useAuthContext } from '../hooks/AuthContext';
 import type { Rental } from '../types';
 import { 
   CalendarIcon, 
@@ -14,26 +15,61 @@ import { Link } from 'react-router-dom';
 
 const MyReservationsPage: React.FC = () => {
   const { rentals, isLoading, error } = useRentals();
-  const { user } = useMultiversXAuth();
+  const { user: walletUser } = useMultiversXAuth();
+  const { user: authUser } = useAuthContext();
+  const user = walletUser || authUser; // Prendre l'utilisateur du wallet ou de l'authentification classique
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'past' | 'upcoming'>('all');
 
   // Filtrer les réservations de l'utilisateur connecté
   const userRentals = useMemo(() => {
     if (!user || !rentals) return [];
-    // Utiliser l'adresse du wallet pour filtrer les réservations
-    const userAddress = user.address || user.walletAddress;
-    if (!userAddress) return [];
     
-    return rentals.filter(rental => {
-      // Vérifier si le locataire est défini et si son adresse correspond à celle de l'utilisateur connecté
-      if (!rental.tenant) return false;
+    // Récupérer l'email et l'adresse du wallet de l'utilisateur
+    const userEmail = user.email?.toLowerCase();
+    const userAddress = (user.address || user.walletAddress)?.toLowerCase();
+    
+    console.log('User info:', { userEmail, userAddress, user });
+    
+    // Si ni email ni adresse n'est disponible, on ne peut pas filtrer
+    if (!userEmail && !userAddress) {
+      console.log('Aucun email ni adresse wallet trouvé pour filtrer les réservations');
+      return [];
+    }
+    
+    const filtered = rentals.filter(rental => {
+      // Vérifier si le locataire est défini
+      if (!rental.tenant) {
+        console.log('Aucun locataire défini pour la réservation:', rental.id);
+        return false;
+      }
       
-      const tenantAddress = rental.tenant.address || rental.tenant.walletAddress;
-      return (
-        tenantAddress?.toLowerCase() === userAddress.toLowerCase() ||
-        rental.tenantId?.toLowerCase() === userAddress.toLowerCase()
-      );
+      // Vérifier la correspondance par email
+      const tenantEmail = rental.tenant.email?.toLowerCase();
+      if (userEmail && tenantEmail === userEmail) {
+        console.log('Réservation trouvée par email:', rental.id, 'Email:', tenantEmail);
+        return true;
+      }
+      
+      // Vérifier la correspondance par adresse wallet
+      if (userAddress) {
+        const tenantAddress = (rental.tenant.address || rental.tenant.walletAddress)?.toLowerCase();
+        if (tenantAddress === userAddress || rental.tenantId?.toLowerCase() === userAddress) {
+          console.log('Réservation trouvée par adresse:', rental.id, 'Adresse:', tenantAddress);
+          return true;
+        }
+      }
+      
+      console.log('Aucune correspondance pour la réservation:', rental.id, {
+        rentalTenantEmail: rental.tenant.email,
+        rentalTenantAddress: rental.tenant.address || rental.tenant.walletAddress,
+        rentalTenantId: rental.tenantId
+      });
+      
+      return false;
     });
+    
+    console.log('Réservations filtrées:', filtered);
+    return filtered;
   }, [rentals, user]);
 
   // Classer les réservations par statut
