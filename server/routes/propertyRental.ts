@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction, RequestHandler } from 'express';
 import { PrismaClient, User } from '@prisma/client';
-import { authenticateToken } from '../middlewares/authenticateToken';
+import { authenticateToken } from '../middlewares/authenticateToken.js';
 
 // Extension de l'interface Request d'Express
 declare module 'express-serve-static-core' {
@@ -258,7 +258,7 @@ router.delete('/properties/:id', authenticateToken, requireRole('OWNER'), async 
     console.error('Error deleting property:', error);
     res.status(500).json({ 
       error: 'Erreur serveur lors de la suppression du bien',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      details: process.env.NODE_ENV === 'development' && error instanceof Error ? error.message : undefined
     });
   }
 });
@@ -332,7 +332,7 @@ router.post('/rentals', authenticateToken, async (req: Request, res: Response): 
     console.error('Erreur lors de la création de la location:', error);
     res.status(500).json({ 
       error: 'Erreur serveur lors de la création de la location',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      details: process.env.NODE_ENV === 'development' && error instanceof Error ? error.message : undefined
     });
   }
 });

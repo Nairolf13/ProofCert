@@ -1,4 +1,5 @@
-import express, { Request, Response, NextFunction } from 'express';
+import 'dotenv/config';
+import express from 'express';
 import { corsMiddleware } from './middlewares/cors.js';
 import authRoutes from './routes/auth.js';
 import proofsRoutes from './routes/proofs.js';
