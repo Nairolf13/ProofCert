@@ -7,6 +7,7 @@ export interface User {
   phoneNumber?: string;
   address?: string;
   walletAddress?: string;
+  phone?: string;
   createdAt: string;
   updatedAt: string;
   profileImage?: string | null;

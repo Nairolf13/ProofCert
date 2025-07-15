@@ -4,6 +4,7 @@ import { ProofType } from '../types';
 import { proofsApi } from '../api/proofs';
 import { useAuthContext } from './AuthContext';
 import { useMultiversXAuth } from './useMultiversXAuth';
+<<<<<<< HEAD
 
 // Utilitaire de log qui ne s'exécute qu'en développement
 const devLog = (...args: Parameters<typeof console.log>): void => {
@@ -23,13 +24,17 @@ const devGroupEnd = (): void => {
     console.groupEnd();
   }
 };
+=======
+>>>>>>> BranchClean
 
 interface UseProofsOptions {
   includeDeleted?: boolean;
   autoFetch?: boolean;
+  filterByUser?: boolean;
 }
 
 export const useProofs = (options: UseProofsOptions = {}) => {
+<<<<<<< HEAD
   const { includeDeleted = false, autoFetch = true } = options;
   const [allProofs, setAllProofs] = useState<Proof[]>([]);
   const [userProofs, setUserProofs] = useState<Proof[]>([]);
@@ -37,6 +42,17 @@ export const useProofs = (options: UseProofsOptions = {}) => {
   const [error, setError] = useState<string | null>(null);
   const { user: classicUser } = useAuthContext();
   const { user: web3User } = useMultiversXAuth();
+=======
+  const { includeDeleted = false, autoFetch = true, filterByUser = true } = options;
+  const [proofs, setProofs] = useState<Proof[]>([]);
+  const [filteredProofs, setFilteredProofs] = useState<Proof[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Récupérer les informations d'authentification
+  const { user: classicUser } = useAuthContext();
+  const { user: web3User, isLoggedIn: isWeb3LoggedIn } = useMultiversXAuth();
+>>>>>>> BranchClean
 
   // Référence pour éviter les appels API en double
   const isFetchingRef = useRef(false);
@@ -47,6 +63,7 @@ export const useProofs = (options: UseProofsOptions = {}) => {
     try {
       isFetchingRef.current = true;
       setIsLoading(true);
+<<<<<<< HEAD
       devGroup('🔍 [useProofs] Fetching proofs...');
       
       // Log des informations utilisateur
@@ -87,12 +104,19 @@ export const useProofs = (options: UseProofsOptions = {}) => {
       // Filtrage des preuves supprimées si nécessaire (côté client comme solution de secours)
       if (!shouldIncludeDeleted) {
         const beforeFilterCount = fetchedProofs.length;
+=======
+      let fetchedProofs = await proofsApi.getAll();
+      
+      // Filtrer les preuves supprimées si nécessaire
+      if (!includeDeleted) {
+>>>>>>> BranchClean
         fetchedProofs = fetchedProofs.filter(p => !p.deletedAt);
         if (beforeFilterCount > fetchedProofs.length) {
           devLog(`🗑️  Filtered out ${beforeFilterCount - fetchedProofs.length} deleted proofs on client side`);
         }
       }
       
+<<<<<<< HEAD
       setAllProofs(fetchedProofs);
       
       devLog('🔍 Filtering proofs for current user...', {
@@ -161,7 +185,28 @@ export const useProofs = (options: UseProofsOptions = {}) => {
       devGroupEnd();
       
       setUserProofs(filteredProofs);
+=======
+      setProofs(fetchedProofs);
+>>>>>>> BranchClean
       setError(null);
+      
+      // Filtrer les preuves par utilisateur si demandé
+      if (filterByUser) {
+        const userFiltered = fetchedProofs.filter(proof => {
+          // Si l'utilisateur est connecté via l'authentification classique
+          if (classicUser && proof.userId === classicUser.id) return true;
+          
+          // Si l'utilisateur est connecté via wallet
+          if (isWeb3LoggedIn && web3User?.id && 
+              proof.userId === web3User.id) return true;
+              
+          return false;
+        });
+        
+        setFilteredProofs(userFiltered);
+      } else {
+        setFilteredProofs(fetchedProofs);
+      }
     } catch (err) {
       setError('Failed to fetch proofs');
       console.error('Error fetching proofs:', err);
@@ -169,7 +214,11 @@ export const useProofs = (options: UseProofsOptions = {}) => {
       isFetchingRef.current = false;
       setIsLoading(false);
     }
+<<<<<<< HEAD
   }, [includeDeleted, autoFetch, classicUser, web3User]);
+=======
+  }, [includeDeleted, autoFetch, filterByUser, classicUser, isWeb3LoggedIn, web3User]);
+>>>>>>> BranchClean
 
   // Utiliser un effet avec une dépendance sur autoFetch
   useEffect(() => {
@@ -185,8 +234,13 @@ export const useProofs = (options: UseProofsOptions = {}) => {
     fetchProofs();
   }, [fetchProofs]);
 
+<<<<<<< HEAD
   const filterProofs = useCallback((type?: ProofType, searchTerm?: string, showDeleted = false) => {
     let filtered = [...userProofs];
+=======
+  const filterProofs = useCallback((type?: ProofType, searchTerm?: string) => {
+    let filtered = filterByUser ? [...filteredProofs] : [...proofs];
+>>>>>>> BranchClean
 
     // Filtrer par type si spécifié
     if (type) {
@@ -208,11 +262,23 @@ export const useProofs = (options: UseProofsOptions = {}) => {
     }
 
     return filtered;
+<<<<<<< HEAD
   }, [userProofs]);
+=======
+  }, [proofs, filteredProofs, filterByUser]);
+>>>>>>> BranchClean
 
+  // Retourner les preuves filtrées par défaut si filterByUser est true
+  const proofsToReturn = filterByUser ? filteredProofs : proofs;
+  
   return {
+<<<<<<< HEAD
     proofs: userProofs,
     allProofs,
+=======
+    proofs: proofsToReturn,
+    allProofs: proofs, // Ajout de toutes les preuves (utile pour l'admin)
+>>>>>>> BranchClean
     isLoading,
     error,
     refreshProofs,

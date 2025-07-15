@@ -25,11 +25,34 @@ router.get('/by-wallet/:walletAddress', async (req: Request, res: Response) => {
     });
 
     if (!user) {
+      // Créer un nouvel utilisateur avec cette adresse wallet
+      const newUser = await prisma.user.create({
+        data: {
+          walletAddress: walletAddress.toLowerCase(),
+          username: `user_${walletAddress.slice(0, 8).toLowerCase()}`,
+          email: `${walletAddress.slice(0, 8).toLowerCase()}@wallet`,
+          role: 'USER',
+          hashedPassword: '', // Mot de passe vide pour les utilisateurs wallet
+          name: `User ${walletAddress.slice(0, 6).toUpperCase()}`
+        },
+        select: {
+          id: true,
+          email: true,
+          username: true,
+          walletAddress: true,
+          role: true,
+          name: true,
+          profileImage: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      });
+
       return res.status(200).json({ 
         success: true, 
-        exists: false,
-        message: 'No user found with this wallet address',
-        walletAddress
+        exists: true,
+        data: newUser,
+        isNewUser: true
       });
     }
 

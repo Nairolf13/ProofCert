@@ -32,8 +32,9 @@ export {
   useGetAccountInfo,
   useGetIsLoggedIn,
   useGetLoginInfo,
-  useMultiversXAuth
-} from './hooks';
+} from '@multiversx/sdk-dapp/hooks';
+
+export { useMultiversXAuth } from '../hooks/useMultiversXAuth';
 
 // Export components
 export {

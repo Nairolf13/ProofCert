@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useMultiversXAuth } from '../hooks/useMultiversXAuth';
 import { useAuthContext } from '../hooks/AuthContext';
@@ -13,7 +13,6 @@ import {
   CalendarDaysIcon,
   ArchiveBoxIcon
 } from '@heroicons/react/24/outline';
-import { userApi } from '../api/user';
 
 const navigation = [
   { name: 'Tableau de bord', href: '/app/dashboard', icon: HomeIcon },
@@ -29,6 +28,7 @@ export const Navbar: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWall
   const { user: web3User, isLoggedIn: isWeb3LoggedIn, logout: web3Logout } = useMultiversXAuth();
   const { user: classicUser, isAuthenticated: isClassicLoggedIn, disconnect: classicLogout } = useAuthContext();
   const location = useLocation();
+<<<<<<< HEAD
   const [isWalletAdmin, setIsWalletAdmin] = useState(false);
 
   // Logs de débogage désactivés
@@ -99,6 +99,47 @@ export const Navbar: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWall
       clearTimeout(timer);
     };
   }, [classicUser, isWeb3LoggedIn, web3User]);
+=======
+  
+  const isActive = (path: string) => location.pathname.startsWith(path);
+  
+  // Vérifier si l'utilisateur est administrateur
+  const isAdmin = React.useMemo(() => {
+    // Vérifier d'abord l'authentification classique
+    if (isClassicLoggedIn && classicUser?.role === 'ADMIN') {
+      console.log('🔑 Utilisateur administrateur (classique) détecté');
+      return true;
+    }
+    
+    // Ensuite vérifier l'authentification Web3
+    if (isWeb3LoggedIn && web3User?.role === 'ADMIN') {
+      console.log('🔑 Utilisateur administrateur (wallet) détecté');
+      return true;
+    }
+    
+    // Vérifier dans le localStorage pour le cas d'un rechargement de page
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        const isAdmin = user?.role === 'ADMIN';
+        console.log('📝 Vérification du rôle dans le localStorage:', { 
+          hasUser: !!user, 
+          userRole: user?.role,
+          isAdmin 
+        });
+        return isAdmin;
+      } catch (e) {
+        console.error('Error parsing stored user:', e);
+      }
+    } else {
+      console.log('ℹ️ Aucun utilisateur trouvé dans le localStorage');
+    }
+    
+    console.log('❌ Aucun administrateur détecté');
+    return false;
+  }, [isClassicLoggedIn, classicUser?.role, isWeb3LoggedIn, web3User?.role]);
+>>>>>>> BranchClean
 
   // Déconnexion complète
   const handleLogout = async () => {
@@ -159,12 +200,7 @@ export const Navbar: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWall
 
   // Affichage info utilisateur
   let userInfo = null;
-  // L'utilisateur est admin s'il est connecté en tant qu'admin via l'authentification classique
-  // OU s'il est connecté avec un wallet admin
-  const isAdmin = Boolean(
-    (isClassicLoggedIn && classicUser?.role === 'ADMIN') ||
-    (isWeb3LoggedIn && isWalletAdmin)
-  );
+  
   if (isClassicLoggedIn && classicUser) {
     userInfo = (
       <span className="text-xs text-secondary font-medium truncate max-w-[160px]" title={classicUser.email}>
@@ -173,7 +209,9 @@ export const Navbar: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWall
     );
   } else if (isWeb3LoggedIn && web3User) {
     userInfo = (
-      <span className="text-xs text-secondary font-medium truncate max-w-[160px]" title={web3User.walletAddress}
+      <span 
+        className="text-xs text-secondary font-medium truncate max-w-[160px]" 
+        title={web3User.walletAddress || 'Adresse inconnue'}
       >
         {web3User.walletAddress ? `${web3User.walletAddress.slice(0, 6)}...${web3User.walletAddress.slice(-4)}` : ''}
       </span>

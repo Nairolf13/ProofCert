@@ -5,7 +5,7 @@ import { UserIcon, WalletIcon, CalendarIcon, ArrowRightOnRectangleIcon, CameraIc
 import { Link, useNavigate } from 'react-router-dom';
 import { useMultiversXAuth } from '../hooks/useMultiversXAuth';
 import { useAuthContext } from '../hooks/AuthContext';
-import { Loader } from '../components/Loader';
+
 
 const ProfilePage: React.FC = () => {
   const { account, isLoggedIn, logout: walletLogout, isLoading: isWalletLoading } = useMultiversXAuth();
@@ -35,24 +35,97 @@ const ProfilePage: React.FC = () => {
     navigate('/');
   };
 
-  // Récupérer les informations de l'utilisateur
-  const user = isLoggedIn && account ? {
-    email: account.address,
-    name: account.username || 'Utilisateur Wallet',
-    avatar: null,
-    role: 'ADMIN' // Par défaut pour les utilisateurs wallet
-  } : authUser ? {
-    email: authUser.email,
-    name: authUser.username || 'Utilisateur',
-    avatar: authUser.profileImage,
-    role: authUser.role || 'TENANT'
-  } : null;
+  // Définir un type pour l'utilisateur avec des champs optionnels
+  type ProfileUser = {
+    id?: string;
+    email: string;
+    username?: string;
+    name: string;
+    avatar?: string | null;
+    profileImage?: string | null;
+    walletAddress?: string;
+    address?: string;
+    phone?: string;
+    role?: 'OWNER' | 'TENANT' | 'ADMIN' | string;
+    createdAt?: string;
+    updatedAt?: string;
+  };
 
-  if (isLoading || isAuthLoading || !user) {
+  // Récupérer les informations de l'utilisateur
+  const user: ProfileUser | null = (() => {
+    // Utilisateur connecté via wallet
+    if (isLoggedIn && account) {
+      // Essayer de récupérer les infos utilisateur depuis le localStorage
+      const storedUser = localStorage.getItem('user');
+      const parsedUser = storedUser ? JSON.parse(storedUser) : null;
+      
+      // Si on a un email dans le stockage local, on l'utilise
+      const userEmail = parsedUser?.email || `${account.address.slice(0, 8)}...@wallet`;
+      const userName = parsedUser?.username || account.username || 'Utilisateur Wallet';
+      
+      return {
+        id: account.address,
+        email: userEmail,
+        username: userName,
+        name: userName,
+        avatar: parsedUser?.profileImage || undefined,
+        profileImage: parsedUser?.profileImage || undefined,
+        role: parsedUser?.role || 'USER',
+        walletAddress: account.address,
+        address: account.address,
+        phone: parsedUser?.phone,
+        createdAt: parsedUser?.createdAt || new Date().toISOString(),
+        updatedAt: parsedUser?.updatedAt || new Date().toISOString()
+      };
+    }
+    
+    // Utilisateur connecté de manière classique
+    if (isAuthenticated && authUser) {
+      return {
+        ...authUser,
+        email: authUser.email || 'email@non-renseigné.com',
+        name: authUser.username || 'Utilisateur',
+        username: authUser.username || 'Utilisateur',
+        avatar: authUser.profileImage,
+        profileImage: authUser.profileImage,
+        walletAddress: authUser.walletAddress || 'Non connecté',
+        address: authUser.address || 'Non renseigné',
+        phone: authUser.phone || 'Non renseigné',
+        role: authUser.role || 'USER'
+      };
+    }
+    
+    return null;
+  })();
+
+  // Vérifier si l'utilisateur est connecté
+  const isUserAuthenticated = isLoggedIn || isAuthenticated;
+  
+  // Afficher le chargement si nécessaire
+  if (isLoading || isAuthLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader size="lg" />
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
       </div>
+    );
+  }
+
+  // Si pas d'utilisateur mais authentifié, afficher une erreur
+  if (isUserAuthenticated && !user) {
+    return (
+      <ImmersiveLayout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <UserIcon className="w-16 h-16 text-secondary mb-4" />
+          <h2 className="text-3xl font-extrabold mb-2 text-primary">Erreur de chargement</h2>
+          <p className="text-lg text-secondary mb-6">Impossible de charger les informations du profil</p>
+          <Button 
+            onClick={() => window.location.reload()}
+            className="btn-primary px-8 py-3 text-lg font-bold rounded-2xl shadow-xl hover:scale-105 transition"
+          >
+            Réessayer
+          </Button>
+        </div>
+      </ImmersiveLayout>
     );
   }
 
@@ -99,9 +172,6 @@ const ProfilePage: React.FC = () => {
     });
   };
 
-  // Vérifier si l'utilisateur est connecté soit via wallet soit via auth classique
-  const isUserAuthenticated = isLoggedIn || isAuthenticated;
-  
   if (!isUserAuthenticated) {
     return (
       <ImmersiveLayout>
@@ -117,95 +187,221 @@ const ProfilePage: React.FC = () => {
     );
   }
 
+  // S'assurer que user n'est pas null avant d'afficher le contenu
+  if (!user) {
+    return (
+      <ImmersiveLayout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <UserIcon className="w-16 h-16 text-secondary mb-4" />
+          <h2 className="text-3xl font-extrabold mb-2 text-primary">Erreur de chargement</h2>
+          <p className="text-lg text-secondary mb-6">Impossible de charger les informations du profil</p>
+          <Button 
+            onClick={() => window.location.reload()}
+            className="btn-primary px-8 py-3 text-lg font-bold rounded-2xl shadow-xl hover:scale-105 transition"
+          >
+            Réessayer
+          </Button>
+        </div>
+      </ImmersiveLayout>
+    );
+  }
+
   return (
     <ImmersiveLayout>
-      <section className="w-full max-w-3xl mx-auto flex flex-col items-center gap-12 py-12 animate-fade-in">
-        {/* Avatar magazine */}
-        <div className="relative group mb-2">
-          <div className="absolute -inset-2 rounded-full blur-2xl bg-primary-light opacity-30 group-hover:opacity-50 transition" />
-          <div className="relative w-36 h-36 rounded-full overflow-hidden border-8 border-white shadow-2xl flex items-center justify-center bg-surface">
-            {/* TODO: Profile image from backend/IPFS based on wallet address */}
-            <UserIcon className="w-20 h-20 text-secondary" />
-            
-            {/* Overlay pour changer la photo */}
-            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-              <label htmlFor="profile-image-input" className="cursor-pointer">
-                <CameraIcon className="w-8 h-8 text-white" />
-                {isUploading && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+      <section className="w-full max-w-4xl mx-auto flex flex-col items-center gap-8 py-8 px-4 animate-fade-in">
+        {/* En-tête du profil */}
+        <div className="w-full bg-white rounded-2xl shadow-lg p-6 mb-6">
+          <div className="flex flex-col md:flex-row items-center gap-8">
+            {/* Avatar */}
+            <div className="relative group">
+              <div className="absolute -inset-2 rounded-full blur-2xl bg-primary-light opacity-30 group-hover:opacity-50 transition" />
+              <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-xl flex items-center justify-center bg-surface">
+                {user.avatar ? (
+                  <img 
+                    src={user.avatar} 
+                    alt={user.name} 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <UserIcon className="w-16 h-16 text-secondary" />
+                )}
+                
+                {/* Overlay pour changer la photo */}
+                <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                  <label htmlFor="profile-image-input" className="cursor-pointer">
+                    <CameraIcon className="w-8 h-8 text-white" />
+                    {isUploading && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                    )}
+                  </label>
+                </div>
+              </div>
+              
+              {/* Input caché pour sélectionner l'image */}
+              <input
+                id="profile-image-input"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleProfileImageChange}
+                className="hidden"
+                disabled={isUploading}
+              />
+            </div>
+
+            {/* Informations principales */}
+            <div className="flex-1 text-center md:text-left">
+              <div className="mb-4">
+                <h1 className="text-3xl font-bold text-primary">{user.name}</h1>
+                <div className="inline-flex items-center mt-2 px-4 py-1 rounded-full text-sm font-medium bg-primary-light text-primary">
+                  {user.role === 'ADMIN' ? 'Administrateur' : 'Utilisateur'}
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex items-center text-gray-700">
+                  <svg className="w-5 h-5 mr-2 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <span className="truncate">{user.email}</span>
+                </div>
+                
+                {user.phone && (
+                  <div className="flex items-center text-gray-700">
+                    <svg className="w-5 h-5 mr-2 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                    <span>{user.phone}</span>
                   </div>
                 )}
-              </label>
+                
+                {user.address && user.address !== 'Non renseigné' && (
+                  <div className="flex items-center text-gray-700">
+                    <svg className="w-5 h-5 mr-2 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span className="truncate">{user.address}</span>
+                  </div>
+                )}
+                
+                <div className="flex items-center text-gray-700">
+                  <WalletIcon className="w-5 h-5 mr-2 text-primary flex-shrink-0" />
+                  <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+                    {user.walletAddress || 'Non connecté'}
+                  </span>
+                </div>
+                
+                {(isLoggedIn && account?.address) || user.walletAddress ? (
+                  <div className="flex items-start text-gray-600">
+                    <WalletIcon className="w-5 h-5 mr-2 mt-0.5 text-primary flex-shrink-0" />
+                    <span className="break-all">{(isLoggedIn && account?.address) || user.walletAddress || ''}</span>
+                  </div>
+                ) : null}
+                
+                {user?.createdAt && (
+                  <div className="flex items-center text-gray-600">
+                    <CalendarIcon className="w-5 h-5 mr-2 text-primary" />
+                    <span>Membre depuis {new Date(user.createdAt).toLocaleDateString('fr-FR')}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Bouton de déconnexion */}
+            <Button 
+              onClick={handleLogoutClick}
+              className="flex items-center gap-2 px-6 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors mt-4 md:mt-0"
+            >
+              <ArrowRightOnRectangleIcon className="w-5 h-5" />
+              Déconnexion
+            </Button>
+          </div>
+        </div>
+
+        {/* Statistiques et informations supplémentaires */}
+        <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Section Informations personnelles */}
+          <div className="bg-white rounded-2xl shadow-lg p-6">
+            <h2 className="text-xl font-bold text-primary mb-4">Informations personnelles</h2>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Nom complet</h3>
+                <p className="mt-1">{user.name}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Email</h3>
+                <p className="mt-1">{user.email}</p>
+              </div>
+              {(isLoggedIn && account?.address) || user.walletAddress ? (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Adresse du portefeuille</h3>
+                  <p className="mt-1 font-mono text-sm break-all">{(isLoggedIn && account?.address) || user.walletAddress || ''}</p>
+                  {isLoggedIn && account?.balance && (
+                    <div className="mt-2">
+                      <h3 className="text-sm font-medium text-gray-500">Solde</h3>
+                      <p className="mt-1 font-mono">{account.balance} EGLD</p>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+              {'phone' in user && user.phone && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Téléphone</h3>
+                  <p className="mt-1">{user.phone}</p>
+                </div>
+              )}
             </div>
           </div>
-          
-          {/* Input caché pour sélectionner l'image */}
-          <input
-            id="profile-image-input"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={handleProfileImageChange}
-            className="hidden"
-            disabled={isUploading}
-          />
-        </div>
-        {/* Infos utilisateur */}
-        <div className="flex flex-col items-center gap-2 w-full">
-          <h1 className="text-3xl font-extrabold text-primary mb-0.5 truncate max-w-xs drop-shadow">
-            {user.name}
-          </h1>
-          <p className="text-secondary text-lg truncate max-w-xs">
-            {user.email}
-          </p>
-          
-          {isLoggedIn && account && (
-            <>
-              <span className="text-secondary text-sm truncate max-w-xs mb-2">
-                Portefeuille MultiversX
-              </span>
-              <div className="flex flex-wrap gap-3 justify-center mt-2">
-                <span className="inline-flex items-center gap-1 px-4 py-1 rounded-full bg-accent-light text-accent text-base font-medium shadow border border-accent">
-                  <WalletIcon className="w-5 h-5" />
-                  {account.address.slice(0, 6)}...{account.address.slice(-4)}
-                </span>
-                <span className="inline-flex items-center gap-1 px-4 py-1 rounded-full bg-primary-light text-primary text-base font-medium shadow border border-primary">
-                  <CalendarIcon className="w-5 h-5" />
-                  Connecté aujourd'hui
-                </span>
+
+          {/* Section Activité récente */}
+          <div className="bg-white rounded-2xl shadow-lg p-6">
+            <h2 className="text-xl font-bold text-primary mb-4">Activité récente</h2>
+            <div className="space-y-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-500 mr-3">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-medium">Profil mis à jour</p>
+                  <p className="text-sm text-gray-500">Il y a 2 jours</p>
+                </div>
               </div>
-              <span className="inline-flex items-center gap-1 px-4 py-1 rounded-full bg-surface-secondary text-secondary text-xs font-mono mt-2 border border-light">
-                <WalletIcon className="w-4 h-4" />
-                Balance: {account.balance ? `${account.balance} EGLD` : 'Loading...'}
-              </span>
-            </>
-          )}
+              <div className="flex items-start">
+                <div className="flex-shrink-0 h-10 w-10 rounded-full bg-green-100 flex items-center justify-center text-green-500 mr-3">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-medium">Connexion réussie</p>
+                  <p className="text-sm text-gray-500">Aujourd'hui à {new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row gap-4 w-full mt-8">
-          <Link to="/favorites" className="w-full sm:w-auto flex-1">
-            <Button 
-              variant="secondary" 
-              className="w-full text-lg font-bold border-2 border-red-200 text-red-600 hover:bg-red-50"
-              leftIcon={
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                </svg>
-              }
-            >
+
+        {/* Boutons d'action */}
+        <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+          <Link to="/app/favorites" className="block">
+            <Button className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-white hover:bg-gray-50 text-primary border border-gray-200 rounded-xl transition-colors">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+              </svg>
               Mes favoris
             </Button>
           </Link>
-          <Button
-            className="btn-primary w-full sm:w-auto flex-1 text-lg font-bold shadow-xl focus:ring-2 focus:ring-primary"
-            onClick={handleLogoutClick}
-            leftIcon={<ArrowRightOnRectangleIcon className="w-6 h-6" />}
-          >
-            Se déconnecter
-          </Button>
-          <Link to="/dashboard" className="w-full sm:w-auto flex-1">
-            <Button variant="secondary" className="w-full text-lg font-bold">
-              Retour au dashboard
+          <Link to="/dashboard" className="block">
+            <Button className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-white hover:bg-gray-50 text-primary border border-gray-200 rounded-xl transition-colors">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Tableau de bord
             </Button>
           </Link>
         </div>

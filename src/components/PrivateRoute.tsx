@@ -25,6 +25,7 @@ export const PrivateRoute: React.FC<PrivateRouteProps> = ({
   requiredRole
 }) => {
   const location = useLocation();
+<<<<<<< HEAD
   const {
     isLoggedIn: isWeb3LoggedIn,
     isLoading: isWeb3Loading,
@@ -33,6 +34,21 @@ export const PrivateRoute: React.FC<PrivateRouteProps> = ({
   
   const auth = useContext(AuthContext);
   const isClassicLoggedIn = auth?.isAuthenticated;
+=======
+  const { isLoggedIn: isWeb3LoggedIn, isLoading: isWeb3Loading, user: web3User } = useMultiversXAuth();
+  const auth = useContext(AuthContext);
+  const isClassicLoggedIn = auth?.isAuthenticated;
+  const isAdmin = auth?.user?.role === 'ADMIN' || web3User?.role === 'ADMIN';
+  
+  console.log('🔐 Vérification des droits administrateur:', {
+    isClassicLoggedIn,
+    isWeb3LoggedIn,
+    classicUserRole: auth?.user?.role,
+    web3UserRole: web3User?.role,
+    isAdmin,
+    adminOnly
+  });
+>>>>>>> BranchClean
   const [isInitialized, setIsInitialized] = useState(false);
   
   // Vérifier si l'utilisateur est admin
@@ -115,6 +131,7 @@ export const PrivateRoute: React.FC<PrivateRouteProps> = ({
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+<<<<<<< HEAD
   // Vérifier les rôles requis
   if (requiredRole && !hasRequiredRole()) {
     return <Navigate to="/dashboard" state={{ from: location }} replace />;
@@ -122,6 +139,12 @@ export const PrivateRoute: React.FC<PrivateRouteProps> = ({
   
   if (adminOnly && !isAdmin()) {
     return <Navigate to="/dashboard" state={{ from: location }} replace />;
+=======
+  // Vérifier les droits admin si nécessaire
+  if (adminOnly && !isAdmin) {
+    console.log('🚫 Accès refusé: droits administrateur requis');
+    return <Navigate to="/app/dashboard" replace />;
+>>>>>>> BranchClean
   }
 
   return <>{children}</>;
