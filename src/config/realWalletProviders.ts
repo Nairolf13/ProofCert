@@ -1,5 +1,6 @@
 // Configuration des vrais providers MultiversX avec sdk-dapp
 import { MULTIVERSX_CONFIG } from './multiversx';
+import { dAppConfig } from './dappConfig';
 import type { MultiversXAccount, MultiversXTransaction } from './multiversx';
 
 // Types pour l'extension Elrond/MultiversX
@@ -206,34 +207,49 @@ class ProofEstateWalletConnectProvider implements RealWalletProvider {
   public name = 'xPortal (WalletConnect)';
   public icon = '📱';
   private isWalletConnected = false;
-  private walletConnectProvider: any = null;
+  private walletConnectProvider: import('@multiversx/sdk-wallet-connect-provider/out/walletConnectV2Provider').WalletConnectV2Provider | null = null;
   private account: MultiversXAccount | null = null;
 
   private async initWalletConnect() {
     if (typeof window === 'undefined') return;
-    
+
     // Importer dynamiquement le SDK WalletConnect
     const { WalletConnectV2Provider } = await import('@multiversx/sdk-wallet-connect-provider/out/walletConnectV2Provider');
-    
-    // Créer une nouvelle instance du provider
+
+    // Définir les callbacks pour login/logout/events
+    const callbacks = {
+      onClientLogin: async () => {
+        console.log('WalletConnect login success');
+        this.isWalletConnected = true;
+        if (this.walletConnectProvider) {
+          const address = await this.walletConnectProvider.getAddress();
+          this.account = address ? await fetchAccountInfo(address) : null;
+        }
+      },
+      onClientLogout: async () => {
+        console.log('WalletConnect logout');
+        this.isWalletConnected = false;
+        this.account = null;
+      },
+      onClientEvent: async (event: { name: string; data?: unknown }) => {
+        console.log('WalletConnect event', event);
+      }
+    };
+
+    const chainId = 'D';
+    const relayUrl = 'wss://relay.walletconnect.com';
+    const projectId = dAppConfig.walletConnectV2ProjectId;
+    const options = { metadata: dAppConfig.walletConnect.getMetadata() };
+
+    // Créer une nouvelle instance du provider avec la bonne signature
     this.walletConnectProvider = new WalletConnectV2Provider(
-      dAppConfig.walletConnectV2ProjectId,
-      dAppConfig.walletConnect.getMetadata()
+      callbacks,
+      chainId,
+      relayUrl,
+      projectId,
+      options
     );
-    
-    // Configurer les écouteurs d'événements
-    this.walletConnectProvider.on('loginRejected', () => {
-      console.log('WalletConnect login rejected');
-      this.isWalletConnected = false;
-      this.account = null;
-    });
-    
-    this.walletConnectProvider.on('logout', () => {
-      console.log('WalletConnect logout');
-      this.isWalletConnected = false;
-      this.account = null;
-    });
-    
+
     return this.walletConnectProvider;
   }
 
@@ -255,12 +271,8 @@ class ProofEstateWalletConnectProvider implements RealWalletProvider {
       
       // Si pas de session, en démarrer une nouvelle
       if (this.walletConnectProvider) {
-        const callbackUrl = typeof window !== 'undefined' ? window.location.href : '';
-        const { uri, approval } = await this.walletConnectProvider.connect({
-          callbackUrl,
-          chainId: 'D' // Devnet
-        });
-        
+        const { uri, approval } = await this.walletConnectProvider.connect({});
+
         // Afficher le QR code si sur mobile
         if (uri) {
           const qrCodeModal = (await import('@walletconnect/qrcode-modal')).default;
@@ -268,19 +280,19 @@ class ProofEstateWalletConnectProvider implements RealWalletProvider {
             console.log('QR Code Modal closed');
           });
         }
-        
+
         // Attendre que l'utilisateur approuve la connexion
         await approval();
-        
+
         // Fermer le modal QR code
         const qrCodeModal = (await import('@walletconnect/qrcode-modal')).default;
         qrCodeModal.close();
-        
+
         // Récupérer l'adresse et les infos du compte
         const address = await this.walletConnectProvider.getAddress();
         this.account = await fetchAccountInfo(address);
         this.isWalletConnected = true;
-        
+
         return this.account;
       }
       
@@ -307,14 +319,29 @@ class ProofEstateWalletConnectProvider implements RealWalletProvider {
     return this.isWalletConnected && this.account !== null;
   }
 
-  async signTransaction(transaction: MultiversXTransaction): Promise<MultiversXTransaction> {
+  async signTransaction(transaction: MultiversXTransaction & { nonce?: number, gasLimit?: number, gasPrice?: number }): Promise<MultiversXTransaction> {
     if (!this.isConnected() || !this.walletConnectProvider) {
       throw new Error('WalletConnect not connected');
     }
-    
+
     try {
-      const signedTx = await this.walletConnectProvider.signTransaction(transaction);
-      return signedTx;
+      const { Transaction, Address } = await import('@multiversx/sdk-core');
+      const tx = new Transaction({
+        nonce: BigInt(transaction.nonce ?? 0),
+        value: BigInt(transaction.value ?? '0'),
+        receiver: new Address(transaction.receiver),
+        sender: new Address(transaction.sender),
+        gasLimit: BigInt(transaction.gasLimit ?? 0),
+        gasPrice: BigInt(transaction.gasPrice ?? 0),
+        data: transaction.data ? Buffer.from(transaction.data, 'utf8') : undefined,
+        chainID: 'D',
+      });
+      const signedTx = await this.walletConnectProvider.signTransaction(tx);
+      return {
+        ...transaction,
+        signature: signedTx.getSignature().toString(),
+        hash: (signedTx as { hash?: string }).hash ?? '',
+      };
     } catch (error) {
       console.error('Error signing transaction with WalletConnect:', error);
       throw error;

@@ -2,11 +2,11 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
-import { authenticateToken } from '../middlewares/authenticateToken.ts';
+import { authenticateToken } from '../middlewares/authenticateToken.js';
 import rateLimit from 'express-rate-limit';
-import { generateAccessToken, generateRefreshToken } from '../utils/jwt.ts';
-import { hashToken, compareToken } from '../utils/hash.ts';
-import propertyRentalRouter from './propertyRental.ts';
+import { generateAccessToken, generateRefreshToken } from '../utils/jwt.js';
+import { hashToken, compareToken } from '../utils/hash.js';
+import propertyRentalRouter from './propertyRental.js';
 import type { Request, Response } from 'express';
 
 const router = Router();
@@ -33,7 +33,6 @@ router.post('/register', (async (req, res) => {
   }
 }) as import('express').RequestHandler);
 
-// @ts-expect-error Express 5 async handler type workaround
 router.post('/login', async (req, res) => {
   try {
     const { emailOrUsername, password } = req.body;
@@ -73,7 +72,6 @@ router.post('/login', async (req, res) => {
   }
 }) as import('express').RequestHandler;
 
-// @ts-expect-error Express 5 async handler type workaround
 router.post('/refresh', rateLimit({ windowMs: 60_000, max: 5 }), async (req, res) => {
   try {
     const refreshToken = req.cookies.refreshToken;
@@ -160,7 +158,6 @@ router.get('/me', authenticateToken, ((req, res) => {
   res.json({ user: userWithoutPassword });
 }) as import('express').RequestHandler);
 
-// @ts-expect-error Express 5 type inference bug with custom req.user
 router.patch('/profile-image', authenticateToken, async (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
   const { profileImage } = req.body;

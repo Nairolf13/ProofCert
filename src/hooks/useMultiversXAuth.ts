@@ -22,7 +22,7 @@ interface MultiversXUser {
   profileImage?: string;
   createdAt?: string;
   updatedAt?: string;
-  [key: string]: any; // Pour les propriétés supplémentaires
+  [key: string]: unknown; // Pour les propriétés supplémentaires
 }
 
 // Vérifier si l'utilisateur est authentifié via l'API classique
@@ -111,7 +111,7 @@ const fetchUserByWallet = async (walletAddress: string): Promise<MultiversXUser 
       // Champs de base - priorité à user.*, puis data.*, puis valeurs par défaut
       id: user?.id || data?.id || `wallet_${walletAddress}`,
       // Préserver le rôle existant s'il est déjà défini (important pour les admins)
-      role: user?.role || data?.role || userData?.role || 'USER',
+      role: user?.role || data?.role || 'USER',
       address: walletAddress,
       walletAddress: walletAddress,
       
@@ -150,9 +150,15 @@ const fetchUserByWallet = async (walletAddress: string): Promise<MultiversXUser 
     
     return userData;
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Gestion spécifique du cas 404 (utilisateur non trouvé)
-    if (error.response?.status === 404) {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'response' in error &&
+      typeof (error as { response?: { status?: number } }).response?.status === 'number' &&
+      (error as { response: { status: number } }).response.status === 404
+    ) {
       console.log(`ℹ️ Aucun utilisateur trouvé pour le wallet: ${walletAddress}`);
       return null;
     }
@@ -160,11 +166,18 @@ const fetchUserByWallet = async (walletAddress: string): Promise<MultiversXUser 
     // Gestion des autres erreurs
     console.error('❌ Erreur lors de la vérification de l\'utilisateur:', error);
     
-    if (error.response) {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'response' in error &&
+      typeof (error as { response?: unknown }).response === 'object' &&
+      (error as { response?: unknown }).response !== null
+    ) {
+      const response = (error as { response: { status?: number; statusText?: string; data?: unknown } }).response;
       console.error('📡 Détails de l\'erreur:', {
-        status: error.response.status,
-        statusText: error.response.statusText,
-        data: error.response.data
+        status: response.status,
+        statusText: response.statusText,
+        data: response.data
       });
     }
     
@@ -183,43 +196,42 @@ export const useMultiversXAuth = () => {
   });
 
   // Fonction pour charger les données utilisateur
-  const loadUserData = useCallback(async (walletAddress: string) => {
+  const loadUserData = useCallback(async (walletAddress: string): Promise<MultiversXUser | null> => {
     if (!walletAddress) {
       console.log('❌ Aucune adresse wallet fournie pour le chargement des données');
-      return;
+      return null;
     }
-    
+
     console.log('🔑 Adresse wallet à vérifier:', walletAddress);
-    
     console.log(`🔄 Début du chargement des données pour le wallet: ${walletAddress}`);
     setIsLoading(true);
-    
+
     try {
       // Essayer de récupérer l'utilisateur depuis l'API
       console.log('🔄 Tentative de récupération des données utilisateur depuis l\'API...');
       let userData = await fetchUserByWallet(walletAddress);
       console.log('📥 Données retournées par fetchUserByWallet:', userData);
-      
+
       // Si pas d'utilisateur trouvé, cela ne devrait pas arriver car le backend en crée un maintenant
       if (!userData) {
         console.error('❌ Aucun utilisateur trouvé malgré la création automatique');
         throw new Error('Failed to create or retrieve user');
       }
-      
+
       console.log('✅ Données utilisateur récupérées avec succès:', {
         id: userData.id,
         username: userData.username,
         role: userData.role
       });
-      
+
       console.log('📊 Données utilisateur à enregistrer:', userData);
-      
+
       // Mettre à jour les données utilisateur
       setUserData(userData);
-      
+
       // Sauvegarder dans le localStorage pour une utilisation ultérieure
       localStorage.setItem('user', JSON.stringify(userData));
-      
+
       // Si l'utilisateur n'a pas d'email, essayer de le récupérer depuis le token
       if ((!userData.email || !userData.name) && localStorage.getItem('token')) {
         console.log('🔍 Tentative de récupération des informations depuis le token...');
@@ -227,50 +239,68 @@ export const useMultiversXAuth = () => {
           console.log('🔑 Token trouvé, appel de /auth/me');
           const response = await api.get('/auth/me');
           const currentUser = response.data;
-          
+
           console.log('👤 Données utilisateur depuis /auth/me:', currentUser);
-          
+
           if (currentUser) {
-            const updatedUser = { 
-              ...userData, 
+            const updatedUser = {
+              ...userData,
               email: currentUser.email || userData.email,
               name: currentUser.name || currentUser.username || userData.name,
               username: currentUser.username || userData.username,
               phone: currentUser.phone || userData.phone
             };
-            
+
             console.log('🔄 Mise à jour des données utilisateur avec les infos du token');
             console.log('📝 Avant mise à jour:', userData);
             console.log('📝 Après mise à jour:', updatedUser);
-            
+
             setUserData(updatedUser);
             localStorage.setItem('user', JSON.stringify(updatedUser));
             console.log('💾 Données utilisateur mises à jour dans le state et le localStorage');
+            userData = updatedUser;
           } else {
             console.log('ℹ️ Aucune donnée utilisateur trouvée dans la réponse de /auth/me');
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error('❌ Erreur lors de la récupération des données depuis /auth/me:', error);
-          if (error.response) {
+          if (
+            typeof error === 'object' &&
+            error !== null &&
+            'response' in error &&
+            typeof (error as { response?: unknown }).response === 'object' &&
+            (error as { response?: unknown }).response !== null
+          ) {
+            const response = (error as { response: { status?: number; statusText?: string; data?: unknown } }).response;
             console.error('📡 Détails de l\'erreur:', {
-              status: error.response.status,
-              statusText: error.response.statusText,
-              data: error.response.data
+              status: response.status,
+              statusText: response.statusText,
+              data: response.data
             });
           }
         }
       } else if (!localStorage.getItem('token')) {
         console.log('ℹ️ Aucun token trouvé, impossible de récupérer des informations supplémentaires');
       }
-    } catch (error: any) {
+
+      return userData;
+    } catch (error: unknown) {
       console.error('❌ Erreur lors du chargement des données utilisateur:', error);
-      if (error.response) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'response' in error &&
+        typeof (error as { response?: unknown }).response === 'object' &&
+        (error as { response?: unknown }).response !== null
+      ) {
+        const response = (error as { response: { status?: number; statusText?: string; data?: unknown } }).response;
         console.error('📡 Détails de l\'erreur:', {
-          status: error.response.status,
-          statusText: error.response.statusText,
-          data: error.response.data
+          status: response.status,
+          statusText: response.statusText,
+          data: response.data
         });
       }
+      return null;
     } finally {
       console.log('🏁 Fin du chargement des données utilisateur');
       setIsLoading(false);
