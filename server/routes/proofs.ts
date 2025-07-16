@@ -11,12 +11,13 @@ router.post('/', authenticateToken, async (req, res) => {
   const userId = req.user.id;
   const {
     title, content, contentType, location, isPublic, propertyId,
-    hash, ipfsHash, transactionHash
+    hash, ipfsHash, transactionHash, hashMvx
   } = req.body;
 
-  // Vérifie la présence du hash de transaction blockchain
-  if (!transactionHash || typeof transactionHash !== 'string' || transactionHash.length < 5) {
-    return res.status(400).json({ error: 'transactionHash (blockchain) requis pour créer une preuve.' });
+  // Vérifie la présence du hash de transaction blockchain (hashMvx ou transactionHash)
+  const txHash = hashMvx || transactionHash;
+  if (!txHash || typeof txHash !== 'string' || txHash.length < 5) {
+    return res.status(400).json({ error: 'hashMvx (blockchain) requis pour créer une preuve.' });
   }
   // Vérifie la présence du hash de preuve (sha256)
   if (!hash || typeof hash !== 'string' || hash.length < 10) {
@@ -35,7 +36,7 @@ router.post('/', authenticateToken, async (req, res) => {
         propertyId: propertyId || null,
         hash,
         ipfsHash: ipfsHash || null,
-        transactionHash,
+        hashMvx: txHash,
         shareToken: `share_${Math.random().toString(36).substring(2, 15)}`,
         timestamp: new Date(),
       }

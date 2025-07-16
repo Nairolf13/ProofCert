@@ -641,8 +641,23 @@ export const PropertyDetailPage: React.FC = () => {
                           <CardTitle className="truncate text-base font-semibold">{proof.title || proof.contentType}</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="text-xs text-gray-500 mb-1 truncate">{proof.hash}</div>
+                          <div className="text-xs text-gray-500 mb-1 truncate">
+                            <span className="font-semibold">Hash SHA-256 :</span> {proof.hash}
+                          </div>
                           <div className="text-xs text-gray-700 mb-1">{proof.contentType}</div>
+                          {proof.transactionHash && (
+                            <div className="text-xs text-blue-600 mb-1 truncate">
+                              <span className="font-semibold">Tx MultiversX :</span> 
+                              <a
+                                href={`https://explorer.multiversx.com/transactions/${proof.transactionHash}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="underline hover:text-blue-800"
+                              >
+                                {proof.transactionHash}
+                              </a>
+                            </div>
+                          )}
                           {proof.ipfsHash && proof.contentType === 'IMAGE' && (
                             <img src={getIPFSUrl(proof.ipfsHash)} alt={proof.title || 'Preuve'} className="w-full h-24 object-contain rounded border my-1" />
                           )}

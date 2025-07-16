@@ -82,7 +82,7 @@ export const ProofsPage: React.FC = () => {
             </div>
           ) : (
             proofs.map((proof) => (
-              <Link key={proof.id} to={`/proof/${proof.id}`} className="group">
+              <Link key={proof.id} to={`/app/proof/${proof.id}`} className="group">
                 <div className="relative card-shadow rounded-3xl p-8 flex flex-col gap-4 transition-all duration-300 hover:scale-[1.015] cursor-pointer">
                   <div className="absolute -inset-2 rounded-3xl bg-primary-light opacity-20 blur-lg -z-10" />
                   <div className="flex items-center gap-3 mb-2">

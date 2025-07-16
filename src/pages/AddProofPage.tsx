@@ -222,6 +222,8 @@ export function AddProofPage({ propertyId, onSuccess }: AddProofPageProps) {
         timestamp: Date.now()
       });
       const { txHash } = await certifyProof(fileHash, metadata);
+      console.log('Hash de transaction blockchain envoyé à l’API:', txHash);
+      alert(`Preuve certifiée avec succès !\nHash de transaction : ${txHash}\nVoir sur l'explorateur : https://explorer.multiversx.com/transactions/${txHash}`);
 
       // 3. Créer la preuve via l'API (après signature blockchain)
       const proofData = {
@@ -231,7 +233,7 @@ export function AddProofPage({ propertyId, onSuccess }: AddProofPageProps) {
         isPublic: false,
         ...(propertyId ? { propertyId } : {}),
         ...(ipfsHash ? { ipfsHash } : {}),
-        transactionHash: txHash,
+        hashMvx: txHash,
         hash: fileHash
       };
       const createdProof = await proofsApi.create(proofData);
