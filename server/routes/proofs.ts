@@ -1,26 +1,54 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { authenticateToken } from '../middlewares/authenticateToken.ts';
+import { authenticateToken } from '../middlewares/authenticateToken.js';
 
 const router = Router();
 const prisma = new PrismaClient();
 
-router.post('/', authenticateToken, (req, res) => {
+
+router.post('/', authenticateToken, async (req, res) => {
   if (!req.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
   const userId = req.user.id;
-  const { title, content, contentType, location, isPublic, propertyId } = req.body;
-  prisma.proof.create({
-    data: {
-      title, content, contentType, location, isPublic: isPublic || false, userId,
-      propertyId: propertyId || null,
-      hash: `hash_${Math.random().toString(36).substring(2, 15)}`,
-      ipfsHash: `Qm${Math.random().toString(36).substring(2, 15)}`,
-      shareToken: `share_${Math.random().toString(36).substring(2, 15)}`,
-      timestamp: new Date(),
+  const {
+    title, content, contentType, location, isPublic, propertyId,
+    hash, ipfsHash, transactionHash
+  } = req.body;
+
+  // Vérifie la présence du hash de transaction blockchain
+  if (!transactionHash || typeof transactionHash !== 'string' || transactionHash.length < 5) {
+    return res.status(400).json({ error: 'transactionHash (blockchain) requis pour créer une preuve.' });
+  }
+  // Vérifie la présence du hash de preuve (sha256)
+  if (!hash || typeof hash !== 'string' || hash.length < 10) {
+    return res.status(400).json({ error: 'hash (sha256) requis pour créer une preuve.' });
+  }
+
+  try {
+    const proof = await prisma.proof.create({
+      data: {
+        title,
+        content,
+        contentType,
+        location,
+        isPublic: isPublic || false,
+        userId,
+        propertyId: propertyId || null,
+        hash,
+        ipfsHash: ipfsHash || null,
+        transactionHash,
+        shareToken: `share_${Math.random().toString(36).substring(2, 15)}`,
+        timestamp: new Date(),
+      }
+    });
+    res.status(201).json(proof);
+  } catch (e) {
+    const err = e as { code?: string };
+    if (err.code === 'P2002') {
+      // Conflit d'unicité (hash déjà existant)
+      return res.status(409).json({ error: 'Une preuve avec ce hash existe déjà.' });
     }
-  })
-    .then(proof => { res.status(201).json(proof); })
-    .catch(() => { res.status(500).json({ error: 'Internal server error' }); });
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Soft delete: met à jour deletedAt au lieu de supprimer

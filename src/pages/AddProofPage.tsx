@@ -3,21 +3,140 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { MediaCaptureComponent } from '../components/MediaCaptureComponent';
 import { MediaPreview } from '../components/MediaPreview';
+// FloatingLabelInput local
+type FloatingLabelInputProps = {
+  label: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  required?: boolean;
+  autoFocus?: boolean;
+};
+function FloatingLabelInput({ label, value, onChange, required, autoFocus }: FloatingLabelInputProps) {
+  return (
+    <div className="relative">
+      <input
+        className="peer w-full border-2 border-gray-200 rounded-xl bg-white/70 px-4 pt-6 pb-2 text-base font-medium focus:outline-none focus:border-blue-400 transition placeholder-transparent shadow-sm"
+        value={value}
+        onChange={onChange}
+        required={required}
+        autoFocus={autoFocus}
+        placeholder=" "
+      />
+      <label className="absolute left-4 top-2 text-gray-400 text-sm font-semibold pointer-events-none transition-all duration-200 peer-placeholder-shown:top-5 peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-300 peer-focus:top-2 peer-focus:text-sm peer-focus:text-blue-500">
+        {label}
+      </label>
+    </div>
+  );
+}
+
+// FloatingLabelTextarea local
+type FloatingLabelTextareaProps = {
+  label: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  required?: boolean;
+};
+function FloatingLabelTextarea({ label, value, onChange, required }: FloatingLabelTextareaProps) {
+  return (
+    <div className="relative">
+      <textarea
+        className="peer w-full border-2 border-gray-200 rounded-xl bg-white/70 px-4 pt-6 pb-2 text-base font-medium focus:outline-none focus:border-blue-400 transition placeholder-transparent shadow-sm min-h-[80px] resize-none"
+        value={value}
+        onChange={onChange}
+        required={required}
+        placeholder=" "
+        rows={3}
+      />
+      <label className="absolute left-4 top-2 text-gray-400 text-sm font-semibold pointer-events-none transition-all duration-200 peer-placeholder-shown:top-5 peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-300 peer-focus:top-2 peer-focus:text-sm peer-focus:text-blue-500">
+        {label}
+      </label>
+    </div>
+  );
+}
+
+// FileDropzone local
+type FileDropzoneProps = {
+  onFile: (file: File) => void;
+};
+function FileDropzone({ onFile }: FileDropzoneProps) {
+  const [dragActive, setDragActive] = useState(false);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      onFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      onFile(e.target.files[0]);
+    }
+  };
+
+  return (
+    <div
+      className={`flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-6 transition-all duration-150 cursor-pointer ${dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white/60'}`}
+      onDragOver={e => { e.preventDefault(); setDragActive(true); }}
+      onDragLeave={e => { e.preventDefault(); setDragActive(false); }}
+      onDrop={handleDrop}
+      onClick={() => inputRef.current?.click()}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        className="hidden"
+        onChange={handleChange}
+      />
+      <span className="text-2xl mb-2">📄</span>
+      <span className="text-sm text-gray-700 font-medium">Glissez-déposez un fichier ici ou cliquez pour sélectionner</span>
+      <span className="text-xs text-gray-400 mt-1">PDF, images, etc.</span>
+    </div>
+  );
+}
 import { ProofType } from '../types';
 import { proofsApi } from '../api/proofs';
 import { sha256File } from '../utils/hash';
-import { sendTransactions } from '@multiversx/sdk-dapp/services/transactions/sendTransactions';
-import { useGetAccountInfo } from '@multiversx/sdk-dapp/hooks';
+import { useBlockchain } from '../hooks/useBlockchain';
+import { useMultiversXAuth } from '../hooks/useMultiversXAuth';
 import { uploadToIPFS } from '../utils/ipfs';
+
+// Simple ProofTypeButton component
+type ProofTypeButtonProps = {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+};
+
+function ProofTypeButton({ active, onClick, children }: ProofTypeButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-4 py-2 rounded-lg font-medium border transition-colors duration-100 ${
+        active
+          ? 'bg-blue-600 text-white border-blue-600 shadow'
+          : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50'
+      }`}
+      aria-pressed={active}
+    >
+      {children}
+    </button>
+  );
+}
+
 
 interface AddProofPageProps {
   propertyId?: string;
   onSuccess?: () => void;
 }
 
-export const AddProofPage: React.FC<AddProofPageProps> = ({ propertyId, onSuccess }) => {
+export function AddProofPage({ propertyId, onSuccess }: AddProofPageProps) {
   const navigate = useNavigate();
-  const { address } = useGetAccountInfo();
+  const { address } = useMultiversXAuth();
+ const { certifyProof } = useBlockchain();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [type, setType] = useState<ProofType>('TEXT');
@@ -57,6 +176,12 @@ export const AddProofPage: React.FC<AddProofPageProps> = ({ propertyId, onSucces
     setError(null);
 
     try {
+      // Double check: le wallet doit être connecté côté auth ET blockchain
+      if (!address) {
+        setError("Vous devez connecter votre wallet MultiversX pour ajouter une preuve.");
+        setIsSubmitting(false);
+        return;
+      }
       // Validation des champs requis
       if (!title.trim()) {
         throw new Error('Le titre est obligatoire');
@@ -70,66 +195,47 @@ export const AddProofPage: React.FC<AddProofPageProps> = ({ propertyId, onSucces
         throw new Error('Un fichier est requis pour ce type de preuve');
       }
 
-      // Préparer les données de la preuve
-      interface ProofData {
-        title: string;
-        content: string;
-        contentType: ProofType;
-        isPublic: boolean;
-        propertyId?: string;
-      }
-      const proofData: ProofData = {
-        title: title.trim(),
-        content: type === 'TEXT' ? content.trim() : `Fichier: ${file?.name || 'Fichier sans nom'}`,
-        contentType: type,
-        isPublic: false, // Par défaut, les preuves sont privées
-        ...(propertyId ? { propertyId } : {})
-      };
-
-      // Créer la preuve via l'API
-      const createdProof = await proofsApi.create(proofData);
-
-      // --- UPLOAD IPFS ---
+      // --- UPLOAD IPFS (si besoin, pour inclure le hash dans le payload blockchain) ---
       let ipfsHash: string | undefined;
       if (file && (type === 'IMAGE' || type === 'VIDEO' || type === 'AUDIO' || type === 'DOCUMENT')) {
         ipfsHash = await uploadToIPFS(file);
-        if (ipfsHash) {
-          await proofsApi.updateIpfsHash(createdProof.id, ipfsHash);
-        }
       }
-      // --- Ancrage blockchain MultiversX ---
-      if (file && createdProof) {
-        // 1. Calculer le hash SHA-256
-        const fileHash = await sha256File(file);
-        // 2. Préparer le payload
-        const payload = Buffer.from(JSON.stringify({
-          sha256: fileHash,
-          ipfs: ipfsHash,
-          type,
-          proofId: createdProof.id,
-          timestamp: Date.now()
-        })).toString('hex');
-        // 3. Envoyer la transaction MultiversX et récupérer le hash
-        const txResult = await sendTransactions({
-          transactions: [{
-            value: '0',
-            data: payload,
-            receiver: address,
-            gasLimit: 6000000
-          }],
-          transactionsDisplayInfo: {
-            processingMessage: 'Ancrage de la preuve sur la blockchain...',
-            errorMessage: 'Erreur lors de l\'ancrage',
-            successMessage: 'Preuve ancrée avec succès !'
-          }
-        });
-        // Récupérer le hash de transaction (sessionId)
-        const transactionHash = txResult?.sessionId;
-        if (transactionHash) {
-          await proofsApi.updateTransactionHash(createdProof.id, transactionHash);
-        }
+
+      // 1. Calculer le hash SHA-256 (fichier ou texte)
+      let fileHash: string;
+      if (file) {
+        fileHash = await sha256File(file);
+      } else {
+        // Hash du contenu textuel si pas de fichier
+        const encoder = new TextEncoder();
+        const data = encoder.encode(content || title.trim());
+        const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+        fileHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
       }
-      // --- Fin ancrage blockchain ---
+
+      // 2. Appel blockchain via le hook officiel (modale signature)
+      const metadata = JSON.stringify({
+        ipfs: ipfsHash,
+        type,
+        title: title.trim(),
+        propertyId,
+        timestamp: Date.now()
+      });
+      const { txHash } = await certifyProof(fileHash, metadata);
+
+      // 3. Créer la preuve via l'API (après signature blockchain)
+      const proofData = {
+        title: title.trim(),
+        content: type === 'TEXT' ? content.trim() : `Fichier: ${file?.name || 'Fichier sans nom'}`,
+        contentType: type,
+        isPublic: false,
+        ...(propertyId ? { propertyId } : {}),
+        ...(ipfsHash ? { ipfsHash } : {}),
+        transactionHash: txHash,
+        hash: fileHash
+      };
+      const createdProof = await proofsApi.create(proofData);
+
       // Afficher un message de succès et rediriger
       if (onSuccess) onSuccess();
       navigate(`/proof/${createdProof.id}`);
@@ -139,6 +245,8 @@ export const AddProofPage: React.FC<AddProofPageProps> = ({ propertyId, onSucces
       setIsSubmitting(false);
     }
   };
+
+// (Remove this duplicate return and closing brace)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 flex flex-col" style={{
@@ -168,7 +276,7 @@ export const AddProofPage: React.FC<AddProofPageProps> = ({ propertyId, onSucces
             <FloatingLabelInput
               label="Titre de la preuve *"
               value={title}
-              onChange={e => setTitle(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
               required
               autoFocus
             />
@@ -183,7 +291,7 @@ export const AddProofPage: React.FC<AddProofPageProps> = ({ propertyId, onSucces
               <FloatingLabelTextarea
                 label="Contenu ou description *"
                 value={content}
-                onChange={e => setContent(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setContent(e.target.value)}
                 required
               />
             )}
@@ -245,12 +353,17 @@ export const AddProofPage: React.FC<AddProofPageProps> = ({ propertyId, onSucces
             )}
           </div>
           {error && <div className="text-red-500 text-center font-semibold animate-shake">{error}</div>}
+          {/* Debug connexion wallet */}
+          <div className="text-xs text-gray-500 mb-2">
+            <strong>Debug:</strong> address: {address || 'AUCUNE'}
+          </div>
           <Button
             type="submit"
             isLoading={isSubmitting}
             className="w-full py-3 rounded-xl gradient-primary text-white font-bold text-lg shadow-lg hover:scale-[1.03] hover:shadow-2xl active:scale-95 transition-all duration-150"
+            disabled={isSubmitting || !address}
           >
-            {isSubmitting ? 'Ajout en cours...' : 'Ajouter la preuve'}
+            {isSubmitting ? 'Ajout en cours...' : !address ? 'Connecte ton wallet pour ajouter une preuve' : 'Ajouter la preuve'}
           </Button>
           <div className="text-center text-xs text-gray-400 mt-2">* Champs obligatoires</div>
         </form>
@@ -279,97 +392,6 @@ export const AddProofPage: React.FC<AddProofPageProps> = ({ propertyId, onSucces
       `}</style>
     </div>
   );
-};
+}
 
-const ProofTypeButton: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({ active, onClick, children }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={`px-4 py-2 rounded-lg font-semibold border transition-all duration-150 text-sm
-      ${active ? 'gradient-primary text-white shadow-lg scale-105' : 'bg-white/70 border-gray-200 text-gray-700 hover:bg-primary-light'}`}
-  >
-    {children}
-  </button>
-);
 
-const FloatingLabelInput: React.FC<{
-  label: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  required?: boolean;
-  autoFocus?: boolean;
-}> = ({ label, value, onChange, required, autoFocus }) => (
-  <div className="relative">
-    <input
-      className="peer w-full border-2 border-gray-200 rounded-xl bg-white/70 px-4 pt-6 pb-2 text-base font-medium focus:outline-none focus:border-purple-400 transition placeholder-transparent shadow-sm"
-      value={value}
-      onChange={onChange}
-      required={required}
-      autoFocus={autoFocus}
-      placeholder=" "
-    />
-    <label className="absolute left-4 top-2 text-gray-400 text-sm font-semibold pointer-events-none transition-all duration-200 peer-placeholder-shown:top-5 peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-300 peer-focus:top-2 peer-focus:text-sm peer-focus:text-purple-500">
-      {label}
-    </label>
-  </div>
-);
-
-const FloatingLabelTextarea: React.FC<{
-  label: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  required?: boolean;
-}> = ({ label, value, onChange, required }) => (
-  <div className="relative">
-    <textarea
-      className="peer w-full border-2 border-gray-200 rounded-xl bg-white/70 px-4 pt-6 pb-2 text-base font-medium focus:outline-none focus:border-purple-400 transition placeholder-transparent shadow-sm min-h-[80px] resize-none"
-      value={value}
-      onChange={onChange}
-      required={required}
-      placeholder=" "
-      rows={3}
-    />
-    <label className="absolute left-4 top-2 text-gray-400 text-sm font-semibold pointer-events-none transition-all duration-200 peer-placeholder-shown:top-5 peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-300 peer-focus:top-2 peer-focus:text-sm peer-focus:text-purple-500">
-      {label}
-    </label>
-  </div>
-);
-
-const FileDropzone: React.FC<{ onFile: (file: File) => void }> = ({ onFile }) => {
-  const [dragActive, setDragActive] = useState(false);
-  const inputRef = React.useRef<HTMLInputElement>(null);
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      onFile(e.dataTransfer.files[0]);
-    }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      onFile(e.target.files[0]);
-    }
-  };
-
-  return (
-    <div
-      className={`flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-6 transition-all duration-150 cursor-pointer ${dragActive ? 'border-primary-500 bg-primary-light' : 'border-gray-300 bg-white/60'}`}
-      onDragOver={e => { e.preventDefault(); setDragActive(true); }}
-      onDragLeave={e => { e.preventDefault(); setDragActive(false); }}
-      onDrop={handleDrop}
-      onClick={() => inputRef.current?.click()}
-    >
-      <input
-        ref={inputRef}
-        type="file"
-        className="hidden"
-        onChange={handleChange}
-      />
-      <span className="text-2xl mb-2">📄</span>
-      <span className="text-sm text-gray-700 font-medium">Glissez-déposez un fichier ici ou cliquez pour sélectionner</span>
-      <span className="text-xs text-gray-400 mt-1">PDF, images, etc.</span>
-    </div>
-  );
-};

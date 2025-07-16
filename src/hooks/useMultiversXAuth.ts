@@ -323,15 +323,15 @@ export const useMultiversXAuth = () => {
     isLoggedIn,
     isLoading,
     isWalletConnected,
-    
+
     // Account info
     account: userData || account,
-    address: userData?.walletAddress || address,
-    
+    address: address, // toujours l'adresse du SDK
+
     // Login info (includes native auth token)
     tokenLogin,
     nativeAuthToken: tokenLogin?.nativeAuthToken,
-    
+
     // Actions
     logout,
     loadUserData: useCallback(async () => {
@@ -339,7 +339,7 @@ export const useMultiversXAuth = () => {
         await loadUserData(address);
       }
     }, [address, loadUserData]),
-    
+
     // Computed values
     walletAddress: userData?.walletAddress || address,
     user: userData || null

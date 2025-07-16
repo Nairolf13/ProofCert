@@ -1,27 +1,27 @@
 import { useState, useCallback } from 'react';
-import { useGetAccountInfo, useGetIsLoggedIn } from '@multiversx/sdk-dapp/hooks';
+import { useGetAccountInfo } from '@multiversx/sdk-dapp/hooks';
 import { sendTransactions } from '@multiversx/sdk-dapp/services/transactions/sendTransactions';
 
 export const useBlockchain = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { account } = useGetAccountInfo();
-  const isConnected = useGetIsLoggedIn();
 
   // Certifier une preuve sur la blockchain
   const certifyProof = useCallback(async (proofHash: string, metadata: string) => {
-    if (!isConnected || !account?.address) {
+    console.log('[certifyProof] account:', account);
+    if (!account?.address) {
       throw new Error('Wallet not connected');
     }
     setIsLoading(true);
     setError(null);
     try {
-      // À adapter selon ton smart contract
+      // Transaction simple : ancrage du hash dans le champ data, receiver = soi-même
       const tx = {
         value: '0',
-        data: `certifyProof@${proofHash}@${metadata}`,
-        receiver: 'SMART_CONTRACT_ADDRESS', // à remplacer
-        gasLimit: 60000000,
+        data: `proofHash@${proofHash}@${metadata}`,
+        receiver: account.address,
+        gasLimit: 50000, // suffisant pour une data simple
       };
       const { sessionId } = await sendTransactions({
         transactions: [tx],
@@ -38,7 +38,7 @@ export const useBlockchain = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [account, isConnected]);
+  }, [account]);
 
   // Effectuer un paiement de location
   const makeRentalPayment = useCallback(async (
@@ -46,7 +46,7 @@ export const useBlockchain = () => {
     amount: string,
     propertyId: string
   ) => {
-    if (!isConnected || !account?.address) {
+    if (!account?.address) {
       throw new Error('Wallet not connected');
     }
     setIsLoading(true);
@@ -76,7 +76,7 @@ export const useBlockchain = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [account, isConnected]);
+  }, [account]);
 
   // Vérifier le statut d'une transaction
   const verifyTransaction = useCallback(async (txHash: string) => {
@@ -120,7 +120,6 @@ export const useBlockchain = () => {
   return {
     isLoading,
     error,
-    isConnected,
     account,
     certifyProof,
     makeRentalPayment,

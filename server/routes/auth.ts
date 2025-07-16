@@ -194,6 +194,10 @@ router.patch('/profile-image', authenticateToken, async (req, res) => {
 router.patch('/role', authenticateToken, async (req, res) => {
   if (!req.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
   const { role } = req.body;
+  // Empêcher la modification du rôle si l'utilisateur est ADMIN
+  if (req.user.role === 'ADMIN') {
+    return res.status(403).json({ error: 'Impossible de modifier le rôle d\'un administrateur.' });
+  }
   if (!role || (role !== 'OWNER' && role !== 'TENANT')) {
     res.status(400).json({ error: 'Invalid role' }); return;
   }
