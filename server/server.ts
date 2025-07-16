@@ -1,3 +1,7 @@
+import * as dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../.env') });
 import express from 'express';
 import { corsMiddleware } from './middlewares/cors.js';
 import authRoutes from './routes/auth.js';
@@ -8,8 +12,7 @@ import cookie from 'cookie';
 import propertyRentalRouter from './routes/propertyRental.js';
 import userRoutes from './routes/user.js';
 // Configuration des chemins de fichiers
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+// ...existing code...
 
 // Initialisation des chemins de fichiers
 const appDir = dirname(fileURLToPath(import.meta.url));

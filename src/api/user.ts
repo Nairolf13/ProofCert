@@ -22,6 +22,7 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
+  console.log('[AXIOS INTERCEPTOR] token utilisé :', token);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -143,9 +144,11 @@ export const userApi = {
       throw new Error(getErrorMessage(error, 'Login failed'));
     }
   },
-  connectWallet: async (walletAddress: string): Promise<{ user: User }> => {
+  connectWallet: async (walletAddress: string, token?: string): Promise<{ user: User }> => {
     try {
-      const response = await api.post('/auth/connect-wallet', { walletAddress });
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const response = await api.post('/auth/connect-wallet', { walletAddress }, { headers });
       const { user } = response.data;
       localStorage.setItem('user', JSON.stringify(user));
       return { user };

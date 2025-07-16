@@ -68,6 +68,38 @@ interface MultiversXProviderProps {
 const MultiversXProvider: React.FC<MultiversXProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(multiversXReducer, initialState);
 
+  // Effet pour lier le wallet à l'utilisateur classique dès qu'un compte wallet est détecté
+  React.useEffect(() => {
+    const tryLinkWalletToClassicUser = async () => {
+      const userStr = localStorage.getItem('user');
+      const multiversxAccountStr = localStorage.getItem('multiversx_account');
+      const token = localStorage.getItem('authToken') || localStorage.getItem('token') || undefined;
+      if (!userStr || !multiversxAccountStr || !token) return;
+      const user = JSON.parse(userStr);
+      const multiversxAccount = JSON.parse(multiversxAccountStr);
+      const walletAddress = multiversxAccount.address;
+      if (!walletAddress) return;
+      if (!user.walletAddress) {
+        try {
+          const { user: updatedUser } = await (await import('../api/user')).userApi.connectWallet(walletAddress, token);
+          // Merge les champs manquants pour compatibilité MultiversXUser
+          const mergedUser = {
+            ...user,
+            ...updatedUser,
+            balance: user.balance ?? '0',
+            nonce: user.nonce ?? 0,
+            shard: user.shard ?? 0,
+          };
+          localStorage.setItem('user', JSON.stringify(mergedUser));
+          console.log('[MultiversXProvider] Wallet lié à l’utilisateur classique:', mergedUser);
+        } catch (err) {
+          console.error('[MultiversXProvider] Erreur lors de la liaison du wallet:', err);
+        }
+      }
+    };
+    tryLinkWalletToClassicUser();
+  }, [state.account]);
+
   // Vrais providers MultiversX - mémorisés pour éviter les recréations
   const providers = useMemo<RealProvidersMap>(() => {
     return createRealWalletProviders() as RealProvidersMap;

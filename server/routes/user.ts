@@ -5,7 +5,6 @@ import { PrismaClient } from '@prisma/client';
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// @ts-expect-error Express types are not compatible with ESM import style
 router.get('/by-wallet/:walletAddress', async (req: Request, res: Response) => {
   try {
     const { walletAddress } = req.params;
@@ -25,37 +24,8 @@ router.get('/by-wallet/:walletAddress', async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      // Créer un nouvel utilisateur avec cette adresse wallet
-      const newUser = await prisma.user.create({
-        data: {
-          walletAddress: walletAddress.toLowerCase(),
-          username: `user_${walletAddress.slice(0, 8).toLowerCase()}`,
-          email: `${walletAddress.slice(0, 8).toLowerCase()}@wallet`,
-          role: 'USER',
-          hashedPassword: '', // Mot de passe vide pour les utilisateurs wallet
-          name: `User ${walletAddress.slice(0, 6).toUpperCase()}`
-        },
-        select: {
-          id: true,
-          email: true,
-          username: true,
-          walletAddress: true,
-          role: true,
-          name: true,
-          profileImage: true,
-          createdAt: true,
-          updatedAt: true
-        }
-      });
-
-      return res.status(200).json({ 
-        success: true, 
-        exists: true,
-        data: newUser,
-        isNewUser: true
-      });
+      return res.status(404).json({ success: false, exists: false, data: null });
     }
-
     return res.json({
       success: true,
       exists: true,
@@ -67,7 +37,7 @@ router.get('/by-wallet/:walletAddress', async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       error: 'Internal server error',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      details: process.env.NODE_ENV === 'development' && error instanceof Error ? error.message : undefined
     });
   }
 });

@@ -95,8 +95,6 @@ const fetchUserByWallet = async (walletAddress: string): Promise<MultiversXUser 
       return null;
     }
     
-    // Extraire les données utilisateur de la réponse
-    // Les données sont dans data.data selon la structure de la réponse
     const user = data.data || data; // Prendre data.data si disponible, sinon data
     console.log('✅ Utilisateur trouvé dans la base de données:', user);
     
@@ -191,156 +189,76 @@ export const useMultiversXAuth = () => {
   const isWalletConnected = useGetIsLoggedIn();
   const { tokenLogin } = useGetLoginInfo();
   const [isLoading, setIsLoading] = useState(false);
-  const [userData, setUserData] = useState<MultiversXUser | null>(() => {
-    return getClassicAuthUser();
-  });
+  // Initialisation de l'utilisateur depuis le localStorage (toujours à jour)
+  const [userData, setUserData] = useState<MultiversXUser | null>(() => getClassicAuthUser());
 
-  // Fonction pour charger les données utilisateur
-  const loadUserData = useCallback(async (walletAddress: string): Promise<MultiversXUser | null> => {
-    if (!walletAddress) {
-      console.log('❌ Aucune adresse wallet fournie pour le chargement des données');
-      return null;
-    }
-
-    console.log('🔑 Adresse wallet à vérifier:', walletAddress);
-    console.log(`🔄 Début du chargement des données pour le wallet: ${walletAddress}`);
-    setIsLoading(true);
-
+  // Fonction pour forcer la récupération de l'utilisateur classique depuis l'API (après login classique)
+  const fetchAndPersistClassicUser = useCallback(async () => {
     try {
-      // Essayer de récupérer l'utilisateur depuis l'API
-      console.log('🔄 Tentative de récupération des données utilisateur depuis l\'API...');
-      let userData = await fetchUserByWallet(walletAddress);
-      console.log('📥 Données retournées par fetchUserByWallet:', userData);
-
-      // Si pas d'utilisateur trouvé, cela ne devrait pas arriver car le backend en crée un maintenant
-      if (!userData) {
-        console.error('❌ Aucun utilisateur trouvé malgré la création automatique');
-        throw new Error('Failed to create or retrieve user');
-      }
-
-      console.log('✅ Données utilisateur récupérées avec succès:', {
-        id: userData.id,
-        username: userData.username,
-        role: userData.role
-      });
-
-      console.log('📊 Données utilisateur à enregistrer:', userData);
-
-      // Mettre à jour les données utilisateur
-      setUserData(userData);
-
-      // Sauvegarder dans le localStorage pour une utilisation ultérieure
-      localStorage.setItem('user', JSON.stringify(userData));
-
-      // Si l'utilisateur n'a pas d'email, essayer de le récupérer depuis le token
-      if ((!userData.email || !userData.name) && localStorage.getItem('token')) {
-        console.log('🔍 Tentative de récupération des informations depuis le token...');
-        try {
-          console.log('🔑 Token trouvé, appel de /auth/me');
-          const response = await api.get('/auth/me');
-          const currentUser = response.data;
-
-          console.log('👤 Données utilisateur depuis /auth/me:', currentUser);
-
-          if (currentUser) {
-            const updatedUser = {
-              ...userData,
-              email: currentUser.email || userData.email,
-              name: currentUser.name || currentUser.username || userData.name,
-              username: currentUser.username || userData.username,
-              phone: currentUser.phone || userData.phone
-            };
-
-            console.log('🔄 Mise à jour des données utilisateur avec les infos du token');
-            console.log('📝 Avant mise à jour:', userData);
-            console.log('📝 Après mise à jour:', updatedUser);
-
-            setUserData(updatedUser);
-            localStorage.setItem('user', JSON.stringify(updatedUser));
-            console.log('💾 Données utilisateur mises à jour dans le state et le localStorage');
-            userData = updatedUser;
-          } else {
-            console.log('ℹ️ Aucune donnée utilisateur trouvée dans la réponse de /auth/me');
-          }
-        } catch (error: unknown) {
-          console.error('❌ Erreur lors de la récupération des données depuis /auth/me:', error);
-          if (
-            typeof error === 'object' &&
-            error !== null &&
-            'response' in error &&
-            typeof (error as { response?: unknown }).response === 'object' &&
-            (error as { response?: unknown }).response !== null
-          ) {
-            const response = (error as { response: { status?: number; statusText?: string; data?: unknown } }).response;
-            console.error('📡 Détails de l\'erreur:', {
-              status: response.status,
-              statusText: response.statusText,
-              data: response.data
-            });
-          }
-        }
-      } else if (!localStorage.getItem('token')) {
-        console.log('ℹ️ Aucun token trouvé, impossible de récupérer des informations supplémentaires');
-      }
-
-      return userData;
-    } catch (error: unknown) {
-      console.error('❌ Erreur lors du chargement des données utilisateur:', error);
-      if (
-        typeof error === 'object' &&
-        error !== null &&
-        'response' in error &&
-        typeof (error as { response?: unknown }).response === 'object' &&
-        (error as { response?: unknown }).response !== null
-      ) {
-        const response = (error as { response: { status?: number; statusText?: string; data?: unknown } }).response;
-        console.error('📡 Détails de l\'erreur:', {
-          status: response.status,
-          statusText: response.statusText,
-          data: response.data
-        });
+      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+      if (!token) return null;
+      const response = await api.get('/auth/me');
+      const user = response.data;
+      if (user && user.id) {
+        localStorage.setItem('user', JSON.stringify(user));
+        setUserData(user);
+        return user;
       }
       return null;
-    } finally {
-      console.log('🏁 Fin du chargement des données utilisateur');
-      setIsLoading(false);
+    } catch (err) {
+      console.error('[useMultiversXAuth] Erreur lors de la récupération de l’utilisateur classique:', err);
+      return null;
     }
   }, []);
 
-  // Effet pour charger les données utilisateur au montage
-  useEffect(() => {
-    console.log('🔄 Vérification de la connexion du wallet...', { isWalletConnected, address });
-    if (isWalletConnected && address) {
-      console.log('🔑 Wallet connecté, chargement des données utilisateur...');
-      
-      // Sauvegarder l'utilisateur actuel s'il existe
-      const currentUser = localStorage.getItem('user');
-      const currentUserData = currentUser ? JSON.parse(currentUser) : null;
-      
-      // Sauvegarder les favoris actuels avant de charger de nouvelles données
-      const currentFavorites = localStorage.getItem('favorites');
-      if (currentFavorites) {
-        console.log('💾 Favoris sauvegardés avant chargement:', JSON.parse(currentFavorites));
-        localStorage.setItem('favorites_backup', currentFavorites);
-      }
-      
-      loadUserData(address).then((userData) => {
-        // Si l'utilisateur avait un rôle admin précédemment, le conserver
-        if (currentUserData?.role === 'ADMIN' && userData) {
-          console.log('🔑 Conservation du rôle administrateur');
-          userData.role = 'ADMIN';
+  // Fonction pour charger les données utilisateur
+  // Fonction pour charger les données utilisateur (wallet OU classique)
+  const loadUserData = useCallback(async (walletAddress?: string) => {
+    setIsLoading(true);
+    try {
+      // Si wallet connecté, on tente d'abord par le wallet
+      if (walletAddress) {
+        const userData = await fetchUserByWallet(walletAddress);
+        if (userData) {
           setUserData(userData);
           localStorage.setItem('user', JSON.stringify(userData));
+          return userData;
+        } else {
+          // Si pas d'utilisateur wallet, on tente de lier au classique
+          const userStr = localStorage.getItem('user');
+          const token = localStorage.getItem('authToken') || localStorage.getItem('token') || undefined;
+          if (userStr && token) {
+            const user = JSON.parse(userStr);
+            try {
+              const { user: updatedUser } = await (await import('../api/user')).userApi.connectWallet(walletAddress, token);
+              setUserData({ ...user, ...updatedUser });
+              localStorage.setItem('user', JSON.stringify({ ...user, ...updatedUser }));
+              return { ...user, ...updatedUser };
+            } catch (err) {
+              console.error('[useMultiversXAuth] Erreur lors de la liaison du wallet:', err);
+              return null;
+            }
+          }
+          return null;
         }
-        
-        // Restaurer les favoris après le chargement si nécessaire
-        const backupFavorites = localStorage.getItem('favorites_backup');
-        if (backupFavorites) {
-          console.log('🔄 Restauration des favoris après connexion...');
-          localStorage.setItem('favorites', backupFavorites);
-          localStorage.removeItem('favorites_backup');
-        }
-      });
+      } else {
+        // Sinon, on force la récupération de l'utilisateur classique
+        return await fetchAndPersistClassicUser();
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchAndPersistClassicUser]);
+
+  // Effet pour charger les données utilisateur au montage
+  // Effet pour charger les données utilisateur au montage ou après login classique
+  useEffect(() => {
+    if (isWalletConnected && address) {
+      // Wallet connecté : charger l'utilisateur wallet ou lier au classique
+      loadUserData(address);
+    } else if (localStorage.getItem('token')) {
+      // Pas de wallet mais token classique : charger l'utilisateur classique
+      loadUserData();
     }
   }, [isWalletConnected, address, loadUserData]);
 
@@ -360,15 +278,16 @@ export const useMultiversXAuth = () => {
       const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
       console.log('💾 Favoris actuels:', favorites);
       
-      // Nettoyer le stockage local
+      // Nettoyer le stockage local (classique + wallet)
       localStorage.removeItem('user');
       localStorage.removeItem('token');
-      
+      localStorage.removeItem('multiversx_address');
+      localStorage.removeItem('multiversx_logged_in');
+      localStorage.removeItem('multiversx_provider');
       // Restaurer les favoris
       if (favorites.length > 0) {
         localStorage.setItem('favorites', JSON.stringify(favorites));
       }
-      
       setUserData(null);
       console.log('👋 Utilisateur déconnecté avec succès');
     } catch (error) {
@@ -377,49 +296,23 @@ export const useMultiversXAuth = () => {
   }, []);
 
   // Synchroniser l'état d'authentification avec le localStorage
+  // Synchronisation de l'état d'authentification avec le localStorage (déconnexion wallet)
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    
-    let isFirstRender = true;
-    
-    const syncAuthState = async () => {
-      if (isWalletConnected && address) {
-        try {
-          // Charger les données utilisateur depuis l'API
-          await loadUserData(address);
-          
-          // Mettre à jour le localStorage
-          if (localStorage.getItem('multiversx_address') !== address) {
-            localStorage.setItem('multiversx_address', address);
-            localStorage.setItem('multiversx_logged_in', 'true');
-          }
-        } catch (error) {
-          console.error('Error syncing auth state:', error);
-        }
-      } else if (!isWalletConnected && !isFirstRender) {
-        // Si déconnecté du wallet, revenir à l'authentification classique si disponible
-        const classicUser = getClassicAuthUser();
-        if (classicUser) {
-          setUserData(classicUser);
-        } else {
-          setUserData(null);
-        }
-        
-        // Nettoyer le localStorage du wallet
-        localStorage.removeItem('multiversx_address');
-        localStorage.removeItem('multiversx_logged_in');
-        localStorage.removeItem('multiversx_provider');
+    if (!isWalletConnected) {
+      // Si déconnecté du wallet, revenir à l'utilisateur classique si dispo
+      const classicUser = getClassicAuthUser();
+      if (classicUser) {
+        setUserData(classicUser);
+      } else {
+        setUserData(null);
       }
-      
-      isFirstRender = false;
-    };
-    
-    const rafId = requestAnimationFrame(syncAuthState);
-    
-    return () => {
-      cancelAnimationFrame(rafId);
-    };
-  }, [isWalletConnected, address, loadUserData, account?.balance, account?.nonce, account?.username, account?.shard]);
+      // Nettoyer le localStorage du wallet
+      localStorage.removeItem('multiversx_address');
+      localStorage.removeItem('multiversx_logged_in');
+      localStorage.removeItem('multiversx_provider');
+    }
+  }, [isWalletConnected]);
 
   // L'utilisateur est considéré comme connecté s'il est connecté via wallet avec un ID valide
   const isLoggedIn = (isWalletConnected && !!userData?.id) || 
@@ -429,6 +322,7 @@ export const useMultiversXAuth = () => {
     // Authentification state
     isLoggedIn,
     isLoading,
+    isWalletConnected,
     
     // Account info
     account: userData || account,

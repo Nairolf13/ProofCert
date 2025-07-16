@@ -6,7 +6,6 @@ export const logout = async (callbackUrl: string = '/') => {
 };
 
 export const clearWalletConnectSessions = () => {
-  // Nettoyer les sessions WalletConnect corrompues
   try {
     const keys = Object.keys(localStorage);
     keys.forEach(key => {
