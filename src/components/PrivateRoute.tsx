@@ -3,7 +3,7 @@ import {
   useEffect, 
   useState, 
   type ReactNode,
-  useCallback 
+  useMemo 
 } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useMultiversXAuth } from '../hooks/useMultiversXAuth';
@@ -25,53 +25,32 @@ export const PrivateRoute: React.FC<PrivateRouteProps> = ({
   requiredRole
 }) => {
   const location = useLocation();
-<<<<<<< HEAD
-  const {
-    isLoggedIn: isWeb3LoggedIn,
-    isLoading: isWeb3Loading,
-    user: web3User
+  const { 
+    isLoggedIn: isWeb3LoggedIn, 
+    isLoading: isWeb3Loading, 
+    user: web3User 
   } = useMultiversXAuth();
   
   const auth = useContext(AuthContext);
   const isClassicLoggedIn = auth?.isAuthenticated;
-=======
-  const { isLoggedIn: isWeb3LoggedIn, isLoading: isWeb3Loading, user: web3User } = useMultiversXAuth();
-  const auth = useContext(AuthContext);
-  const isClassicLoggedIn = auth?.isAuthenticated;
-  const isAdmin = auth?.user?.role === 'ADMIN' || web3User?.role === 'ADMIN';
-  
-  console.log('🔐 Vérification des droits administrateur:', {
-    isClassicLoggedIn,
-    isWeb3LoggedIn,
-    classicUserRole: auth?.user?.role,
-    web3UserRole: web3User?.role,
-    isAdmin,
-    adminOnly
-  });
->>>>>>> BranchClean
   const [isInitialized, setIsInitialized] = useState(false);
   
-  // Vérifier si l'utilisateur est admin
-  const isAdmin = useCallback((): boolean => {
-    // Vérifier via l'authentification classique
-    const userRole = auth?.user?.role;
-    if (userRole === 'ADMIN') return true;
+  // Check if user is admin
+  const isAdmin = useMemo((): boolean => {
+    // Check classic auth
+    if (auth?.user?.role && auth.user.role === 'ADMIN') return true;
     
-    // Vérifier via Web3
-    const web3Role = web3User?.role;
-    if (web3Role === 'ADMIN') {
-      // Mettre à jour le rôle dans le contexte d'authentification si nécessaire
+    // Check Web3 auth
+    if (web3User?.role && web3User.role === 'ADMIN') {
+      // Update auth context if needed
       if (auth?.user && auth.user.role !== 'ADMIN' && auth.user.role !== undefined) {
         auth.updateUser({ 
           ...auth.user,
-          // Champs obligatoires
           id: auth.user.id,
-          email: auth.user.email,
-          username: auth.user.username,
-          // Champs avec des valeurs par défaut
+          email: auth.user.email || '',
+          username: auth.user.username || '',
           role: 'ADMIN' as const,
           walletAddress: auth.user.walletAddress || '',
-          // Champs de date requis
           createdAt: auth.user.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });
@@ -82,42 +61,50 @@ export const PrivateRoute: React.FC<PrivateRouteProps> = ({
     return false;
   }, [auth, web3User?.role]);
   
-  // Vérifier si l'utilisateur a le rôle requis
-  const hasRequiredRole = useCallback((): boolean => {
+  // Check if user has required role
+  const hasRequiredRole = useMemo((): boolean => {
     if (!requiredRole) return true;
     
-    // Vérifier explicitement le type du rôle
     const userRole = (auth?.user?.role || web3User?.role) as UserRole | undefined;
-    
-    // Vérifier si le rôle est défini avant de comparer
     if (!userRole) return false;
     
-    // S'assurer que le rôle est bien un des rôles valides
-    const validRoles: UserRole[] = ['OWNER', 'TENANT', 'ADMIN'];
-    if (!validRoles.includes(userRole)) return false;
-    
-    return userRole === requiredRole;
+    // Ensure both roles are of the same type for comparison
+    return userRole.toString() === requiredRole.toString();
   }, [requiredRole, auth?.user?.role, web3User?.role]);
 
-  // Initialisation avec un timeout
+  // Debug logging
+  useEffect(() => {
+    console.log('🔐 Auth check:', {
+      isClassicLoggedIn,
+      isWeb3LoggedIn,
+      classicUserRole: auth?.user?.role,
+      web3UserRole: web3User?.role,
+      isAdmin,
+      adminOnly,
+      requiredRole,
+      hasRequiredRole
+    });
+  }, [isClassicLoggedIn, isWeb3LoggedIn, auth?.user?.role, web3User?.role, isAdmin, adminOnly, requiredRole, hasRequiredRole]);
+  
+  // Initialize with timeout
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsInitialized(true);
     }, 100);
     return () => clearTimeout(timer);
-  }, []);
-
-  // Gestion de la redirection de connexion
+  }, [setIsInitialized]);
+  
+  // Handle login redirect
   useEffect(() => {
     if (!isWeb3LoggedIn && !isClassicLoggedIn) {
-      const redirectPath = location.pathname + location.search;
+      const redirectPath = `${location.pathname}${location.search}`;
       if (redirectPath !== '/') {
         sessionStorage.setItem('redirectAfterLogin', redirectPath);
       }
     }
   }, [isWeb3LoggedIn, isClassicLoggedIn, location.pathname, location.search]);
 
-  // Pendant le chargement initial, afficher un loader
+  // Show loader while initializing
   if (!isInitialized || isWeb3Loading || auth?.isAuthLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -126,25 +113,21 @@ export const PrivateRoute: React.FC<PrivateRouteProps> = ({
     );
   }
 
-  // Si l'utilisateur n'est pas connecté
+  // Redirect to login if not authenticated
   if (!isWeb3LoggedIn && !isClassicLoggedIn) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-<<<<<<< HEAD
-  // Vérifier les rôles requis
-  if (requiredRole && !hasRequiredRole()) {
-    return <Navigate to="/dashboard" state={{ from: location }} replace />;
+  // Check required role
+  if (requiredRole && !hasRequiredRole) {
+    console.log('🚫 Access denied: missing required role', { requiredRole });
+    return <Navigate to="/app/dashboard" state={{ from: location }} replace />;
   }
   
-  if (adminOnly && !isAdmin()) {
-    return <Navigate to="/dashboard" state={{ from: location }} replace />;
-=======
-  // Vérifier les droits admin si nécessaire
+  // Check admin rights if required
   if (adminOnly && !isAdmin) {
-    console.log('🚫 Accès refusé: droits administrateur requis');
-    return <Navigate to="/app/dashboard" replace />;
->>>>>>> BranchClean
+    console.log('🚫 Access denied: admin rights required');
+    return <Navigate to="/app/dashboard" state={{ from: location }} replace />;
   }
 
   return <>{children}</>;

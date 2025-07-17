@@ -1,16 +1,3 @@
-<<<<<<< HEAD
-import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useGetAccountInfo, useGetIsLoggedIn } from '@multiversx/sdk-dapp/hooks';
-import { logout as sdkLogout } from '@multiversx/sdk-dapp/utils/logout';
-import userApi from '../api/user';
-
-import type { User } from '../types';
-
-type UserRole = 'OWNER' | 'TENANT' | 'ADMIN' | 'USER';
-
-interface MultiversXUser {
-  // Champs de base du wallet
-=======
 import { useEffect, useState, useCallback } from 'react';
 import {
   useGetAccountInfo,
@@ -22,35 +9,24 @@ import api from '../api/user';
 
 interface MultiversXUser {
   id: string;
->>>>>>> BranchClean
   address: string;
   balance: string;
   nonce: number;
   shard: number;
   walletAddress: string;
-<<<<<<< HEAD
-  
-  // Champs de l'utilisateur classique
-  id: string;
-  role: UserRole;
-  email: string;
-  username: string | null;
-  firstName?: string;
-  lastName?: string;
-  phoneNumber?: string;
-  profileImage?: string | null;
-  isEmailVerified?: boolean;
-  isPhoneVerified?: boolean;
-  createdAt: string;
-  updatedAt: string;
-=======
   role: string;
   email?: string;
   phone?: string;
   name?: string;
   profileImage?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  phoneNumber?: string;
+  isEmailVerified?: boolean;
+  isPhoneVerified?: boolean;
+  createdAt: string;
+  updatedAt: string;
   [key: string]: unknown; // Pour les propriétés supplémentaires
 }
 
@@ -62,54 +38,29 @@ const getClassicAuthUser = (): MultiversXUser | null => {
   if (!userData) return null;
   
   try {
-<<<<<<< HEAD
-    const user: User = JSON.parse(userData);
-    
-    // Créer un objet avec des valeurs par défaut pour les champs obligatoires
-    const defaultUser: MultiversXUser = {
-      // Champs de base
-=======
     const user = JSON.parse(userData);
     return {
       id: user.id || 'unknown',
       role: user.role || 'USER',
->>>>>>> BranchClean
       address: user.walletAddress || '',
-      balance: '0',
-      nonce: 0,
-      shard: 0,
+      balance: user.balance || '0',
+      nonce: user.nonce || 0,
+      shard: user.shard || 0,
       walletAddress: user.walletAddress || '',
-<<<<<<< HEAD
-      
-      // Champs obligatoires avec valeurs par défaut
-      id: user.id || '',
-      role: user.role || 'USER',
-      email: user.email || '',
-      username: user.username || null,
-      
-      // Champs optionnels
+      email: user.email,
+      phone: user.phone || user.phoneNumber,
+      name: user.name || [user.firstName, user.lastName].filter(Boolean).join(' ') || undefined,
+      username: user.username,
       firstName: user.firstName,
       lastName: user.lastName,
       phoneNumber: user.phoneNumber,
       profileImage: user.profileImage,
       isEmailVerified: user.isEmailVerified,
       isPhoneVerified: user.isPhoneVerified,
-      
-      // S'assurer que les champs de date sont toujours définis
       createdAt: user.createdAt || new Date().toISOString(),
-      updatedAt: user.updatedAt || new Date().toISOString()
+      updatedAt: user.updatedAt || new Date().toISOString(),
+      ...user // Spread any additional properties
     };
-    
-    return defaultUser;
-=======
-      email: user.email,
-      phone: user.phone,
-      name: user.name,
-      profileImage: user.profileImage,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt
-    };
->>>>>>> BranchClean
   } catch (error) {
     console.error('Error parsing user data:', error);
     return null;
@@ -353,7 +304,7 @@ export const useMultiversXAuth = () => {
     } catch (error) {
       console.error('❌ Erreur lors de la déconnexion:', error);
     }
-  }, []);
+  }, [userData]);
 
   // Synchroniser l'état d'authentification avec le localStorage
   // Synchronisation de l'état d'authentification avec le localStorage (déconnexion wallet)
@@ -374,54 +325,34 @@ export const useMultiversXAuth = () => {
     }
   }, [isWalletConnected]);
 
-  // L'utilisateur est considéré comme connecté s'il est connecté via wallet avec un ID valide
-  const isLoggedIn = (isWalletConnected && !!userData?.id) || 
-                   (!isWalletConnected && !!userData?.id && !!localStorage.getItem('token'));
->>>>>>> BranchClean
-
-  // Retourner les valeurs du hook
-  const isUserLoggedIn = isWalletConnected || !!userData?.id;
+  const isUserLoggedIn = (isWalletConnected && !!userData?.id) || 
+                       (!isWalletConnected && !!userData?.id && !!localStorage.getItem('token'));
   
   return {
-<<<<<<< HEAD
+    // Authentication state
     isLoggedIn: isUserLoggedIn,
-    isLoading: false, // Ajout d'une valeur par défaut pour isLoading
-    user: userWithRole, // Utilisation de userWithRole au lieu de user
-    address: userData?.address || '',
-    balance: userData?.balance || '0',
-    nonce: userData?.nonce || 0,
-    shard: userData?.shard || 0,
-    walletAddress: userData?.walletAddress || '',
-    logout: handleLogoutInternal,
-    updateUser: setUserData,
-    account: userData // Ajout de la propriété account pour la rétrocompatibilité
-  } as const;
-};
-=======
-    // Authentification state
-    isLoggedIn,
     isLoading,
     isWalletConnected,
 
-    // Account info
+    // User data
+    user: userData || null,
+    userWithRole: userData || null,
     account: userData || account,
-    address: address, // toujours l'adresse du SDK
 
-    // Login info (includes native auth token)
+    // Wallet info
+    address: userData?.address || address || '',
+    walletAddress: userData?.walletAddress || address || '',
+    balance: userData?.balance || '0',
+    nonce: userData?.nonce || 0,
+    shard: userData?.shard || 0,
+
+    // Login info
     tokenLogin,
     nativeAuthToken: tokenLogin?.nativeAuthToken,
+    loginInfo: tokenLogin,
 
     // Actions
     logout,
-    loadUserData: useCallback(async () => {
-      if (address) {
-        await loadUserData(address);
-      }
-    }, [address, loadUserData]),
-
-    // Computed values
-    walletAddress: userData?.walletAddress || address,
-    user: userData || null
+    updateUser: setUserData
   };
 };
->>>>>>> BranchClean

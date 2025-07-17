@@ -269,7 +269,7 @@ router.patch('/admin/update-role', authenticateToken, async (req, res) => {
     console.error('Error updating user role:', error);
     res.status(500).json({ 
       error: 'Internal server error',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      details: process.env.NODE_ENV === 'development' && error instanceof Error ? error.message : undefined
     });
   }
 }) as import('express').RequestHandler;

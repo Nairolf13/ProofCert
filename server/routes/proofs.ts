@@ -1,14 +1,36 @@
-import { Router, Request, Response } from 'express';
+import { Router, type Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken } from '../middlewares/authenticateToken.js';
+import type { Request } from 'express';
 
-const router = Router();
+// Typage global pour req.user
+import type { Role } from '@prisma/client';
+interface AuthenticatedUser {
+  id: string;
+  email: string;
+  username: string;
+  hashedPassword: string;
+  walletAddress: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  profileImage: string | null;
+  role: Role;
+}
+
+declare module 'express-serve-static-core' {
+  interface Request {
+    user?: AuthenticatedUser;
+  }
+}
+
 const prisma = new PrismaClient();
-
-
-router.post('/', authenticateToken, async (req, res) => {
-  if (!req.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
-  const userId = req.user.id;
+const router = Router();
+router.post('/', authenticateToken, async (req: Request, res: Response) => {
+  const user = req.user;
+  if (!user) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const userId = user.id;
   const {
     title, content, contentType, location, isPublic, propertyId,
     hash, ipfsHash, transactionHash, hashMvx
@@ -25,176 +47,175 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 
   try {
-    const proof = await prisma.proof.create({
-      data: {
-        title,
-        content,
-        contentType,
-        location,
-        isPublic: isPublic || false,
-        userId,
-        propertyId: propertyId || null,
-        hash,
-        ipfsHash: ipfsHash || null,
-        hashMvx: txHash,
-        shareToken: `share_${Math.random().toString(36).substring(2, 15)}`,
-        timestamp: new Date(),
-      }
-    });
-    res.status(201).json(proof);
-  } catch (e) {
-    const err = e as { code?: string };
-    if (err.code === 'P2002') {
-      // Conflit d'unicité (hash déjà existant)
-      return res.status(409).json({ error: 'Une preuve avec ce hash existe déjà.' });
+    const proofData = {
+      title: title || null,
+      content: content || null,
+      contentType: contentType || null,
+      location: location || null,
+      isPublic: Boolean(isPublic),
+      userId,
+      propertyId: propertyId || null,
+      hash,
+      ipfsHash: ipfsHash || null,
+      hashMvx: txHash,
+      shareToken: `share_${Math.random().toString(36).substring(2, 15)}`,
+      createdAt: new Date(),
+    };
+    const proof = await prisma.proof.create({ data: proofData });
+    return res.status(201).json(proof);
+  } catch (error) {
+    console.error('Error creating proof:', error);
+    if (typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === 'P2002') {
+      return res.status(409).json({ 
+        error: 'Une preuve avec ce hash existe déjà.',
+        code: 'DUPLICATE_HASH',
+      });
     }
-    res.status(500).json({ error: 'Internal server error' });
+    if (error instanceof Error && error.name === 'PrismaClientValidationError') {
+      return res.status(400).json({
+        error: 'Données de preuve invalides',
+        details: error.message,
+      });
+    }
+    return res.status(500).json({
+      error: 'Une erreur est survenue lors de la création de la preuve',
+      code: 'INTERNAL_SERVER_ERROR',
+    });
   }
 });
 
 // Soft delete: met à jour deletedAt au lieu de supprimer
-router.delete('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+router.delete('/:id', authenticateToken, async (req: Request, res: Response) => {
+  const user = req.user;
+  if (!user) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
   const { id } = req.params;
-  const userId = req.user.id;
-  const userRole = req.user.role;
+  const userId = user.id;
+  const userRole = user.role;
   try {
-    // Admin peut supprimer n'importe quelle preuve, sinon seulement la sienne
-    const where = userRole === 'ADMIN' ? { id } : { id, userId };
+    if (!id || typeof id !== 'string') {
+      return res.status(400).json({ error: 'ID de preuve invalide', code: 'INVALID_PROOF_ID' });
+    }
+    const where = userRole === 'ADMIN' 
+      ? { id, deletedAt: null } 
+      : { id, userId, deletedAt: null };
     const proof = await prisma.proof.findFirst({ where });
+    if (!proof) {
+      return res.status(404).json({ error: 'Preuve non trouvée ou déjà supprimée', code: 'PROOF_NOT_FOUND' });
+    }
+    await prisma.proof.update({ 
+      where: { id },
+      data: { deletedAt: new Date(), shareToken: `deleted_${proof.shareToken}` },
+    });
+    return res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting proof:', error);
+    return res.status(500).json({ error: 'Une erreur est survenue lors de la suppression de la preuve', code: 'INTERNAL_SERVER_ERROR' });
+  }
+});
+
+// GET /share/:shareToken (public share route, placée avant /:id pour éviter conflit)
+router.get('/share/:shareToken', async (req: Request, res: Response) => {
+  try {
+    const { shareToken } = req.params;
+    if (!shareToken || typeof shareToken !== 'string') {
+      return res.status(400).json({ error: 'Invalid share token', code: 'INVALID_SHARE_TOKEN' });
+    }
+    const proof = await prisma.proof.findFirst({
+      where: { shareToken, isPublic: true, deletedAt: null },
+      select: { id: true, title: true, hash: true, createdAt: true, contentType: true, isPublic: true, ipfsHash: true, content: true },
+    });
+    if (!proof) {
+      return res.status(404).json({ error: 'Shared proof not found or not public', code: 'PROOF_NOT_FOUND_OR_NOT_PUBLIC' });
+    }
+    return res.json(proof);
+  } catch {
+    return res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_SERVER_ERROR' });
+  }
+});
+
+// Get all proofs for the authenticated user
+router.get('/', authenticateToken, async (req: Request, res: Response) => {
+  const user = req.user;
+  if (!user) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  try {
+    type WhereCondition = { deletedAt?: Date | { equals: null } | { not: null } | null; userId?: string; OR?: Array<{ userId: string }>; };
+    const includeDeleted = req.query.includeDeleted === 'true' && user.role === 'ADMIN';
+    const where: WhereCondition = { ...(includeDeleted ? {} : { deletedAt: null }) };
+    if (user.role !== 'ADMIN') {
+      const conditions: Array<{ userId: string }> = [];
+      if (user.id) {
+        conditions.push({ userId: user.id });
+      }
+      const walletAddress = req.headers['x-wallet-address'] as string || user.walletAddress;
+      if (walletAddress) {
+        conditions.push({ userId: walletAddress });
+      }
+      if (conditions.length > 0) {
+        where.OR = conditions;
+      } else {
+        where.userId = 'NO_MATCH';
+      }
+    }
+    const proofs = await prisma.proof.findMany({ where, orderBy: { createdAt: 'desc' } });
+    console.log('Returning proofs for user:', { userId: user.id, walletAddress: user.walletAddress, role: user.role, proofCount: proofs.length });
+    return res.json(proofs);
+  } catch (error) {
+    console.error('Error fetching proofs:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
+  const user = req.user;
+  if (!user) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const { id } = req.params;
+  try {
+    const proof = await prisma.proof.findFirst({ where: { id, userId: user.id } });
     if (!proof) { res.status(404).json({ error: 'Proof not found' }); return; }
-    if (proof.deletedAt) { res.status(410).json({ error: 'Proof already deleted' }); return; }
-    await prisma.proof.update({ where: { id }, data: { deletedAt: new Date() } });
-    res.status(204).send();
+    res.json(proof);
   } catch {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// GET / (liste des preuves)
-router.get('/', authenticateToken, (async (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user) { 
-    return res.status(401).json({ error: 'Unauthorized' }); 
+router.patch('/:id', authenticateToken, async (req: Request, res: Response) => {
+  const user = req.user;
+  if (!user) {
+    return res.status(401).json({ error: 'Unauthorized' });
   }
-
-  try {
-    // Définir le type pour la condition de recherche
-    type WhereCondition = {
-      deletedAt?: Date | { equals: null } | { not: null } | null;
-      userId?: string;
-      OR?: Array<{ userId: string }>;
-    };
-    
-    // Vérifier si on doit inclure les preuves supprimées (uniquement pour les admins)
-    const includeDeleted = req.query.includeDeleted === 'true' && req.user.role === 'ADMIN';
-    
-    const where: WhereCondition = { 
-      // Si on inclut les supprimés, on ne filtre pas sur deletedAt
-      ...(includeDeleted ? {} : { deletedAt: null })
-    };
-    
-    // Si l'utilisateur n'est pas admin, on filtre par son ID ou son adresse de wallet
-    if (req.user.role !== 'ADMIN') {
-      // Créer un tableau de conditions non nulles
-      const conditions: Array<{ userId: string }> = [];
-      
-      // Ajouter l'ID utilisateur classique s'il existe
-      if (req.user.id) {
-        conditions.push({ userId: req.user.id });
-      }
-      
-      // Ajouter l'adresse du portefeuille si elle existe (depuis le header ou le user)
-      const walletAddress = req.headers['x-wallet-address'] as string || req.user.walletAddress;
-      if (walletAddress) {
-        conditions.push({ userId: walletAddress });
-      }
-      
-      // Si on a des conditions, on les ajoute à la requête
-      if (conditions.length > 0) {
-        where.OR = conditions;
-      } else {
-        // Si pas de conditions, on ne retourne rien
-        where.userId = 'NO_MATCH';
-      }
-    }
-
-    const proofs = await prisma.proof.findMany({
-      where,
-      orderBy: { createdAt: 'desc' }
-    });
-
-    console.log('Returning proofs for user:', {
-      userId: req.user.id,
-      walletAddress: req.user.walletAddress,
-      role: req.user.role,
-      proofCount: proofs.length
-    });
-
-    // Utiliser res.json() sans return pour éviter les problèmes de typage
-    res.json(proofs);
-  } catch (error) {
-    console.error('Error fetching proofs:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-  return;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-}) as any);
-
-router.get('/:id', authenticateToken, (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
   const { id } = req.params;
-  const userId = req.user.id;
-  prisma.proof.findFirst({ where: { id, userId } })
-    .then(proof => {
-      if (!proof) { res.status(404).json({ error: 'Proof not found' }); return; }
-      res.json(proof);
-    })
-    .catch(() => { res.status(500).json({ error: 'Internal server error' }); });
-});
-
-router.get('/share/:shareToken', (req: Request, res: Response) => {
-  const { shareToken } = req.params;
-  prisma.proof.findFirst({
-    where: { shareToken, isPublic: true },
-    select: { id: true, title: true, hash: true, timestamp: true, contentType: true, isPublic: true, ipfsHash: true }
-  })
-    .then(proof => {
-      if (!proof) { res.status(404).json({ error: 'Shared proof not found' }); return; }
-      res.json(proof);
-    })
-    .catch(() => { res.status(500).json({ error: 'Internal server error' }); });
-});
-
-router.patch('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
-  const { id } = req.params;
-  const userId = req.user.id;
   const { transactionHash, ipfsHash } = req.body;
   if (!transactionHash && !ipfsHash) {
-    res.status(400).json({ error: 'transactionHash or ipfsHash required' });
-    return;
+    return res.status(400).json({ error: 'transactionHash or ipfsHash required' });
   }
   try {
-    const proof = await prisma.proof.findFirst({ where: { id, userId } });
-    if (!proof) { res.status(404).json({ error: 'Proof not found' }); return; }
+    const proof = await prisma.proof.findFirst({ where: { id, userId: user.id } });
+    if (!proof) { return res.status(404).json({ error: 'Proof not found' }); }
     const updateData: Partial<{ transactionHash: string; ipfsHash: string }> = {};
     if (transactionHash) updateData.transactionHash = transactionHash;
     if (ipfsHash) updateData.ipfsHash = ipfsHash;
     const updated = await prisma.proof.update({ where: { id }, data: updateData });
     res.json(updated);
-  } catch {
+  } catch (error) {
+    console.error('Error updating proof:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-router.get('/by-property/:propertyId', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+router.get('/by-property/:propertyId', authenticateToken, async (req: Request, res: Response) => {
+  const user = req.user;
+  if (!user) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
   const { propertyId } = req.params;
   try {
-    const proofs = await prisma.proof.findMany({
-      where: { propertyId },
-      orderBy: { createdAt: 'desc' }
-    });
+    const proofs = await prisma.proof.findMany({ where: { propertyId, userId: user.id }, orderBy: { createdAt: 'desc' } });
     res.json(proofs);
   } catch {
     res.status(500).json({ error: 'Internal server error' });

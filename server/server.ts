@@ -1,26 +1,26 @@
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
-dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../.env') });
-import express from 'express';
+import express, { type Express, type Request, type Response, type NextFunction } from 'express';
+import { parse as parseCookie } from 'cookie';
 import { corsMiddleware } from './middlewares/cors.js';
 import authRoutes from './routes/auth.js';
 import proofsRoutes from './routes/proofs.js';
 import favoritesRoutes from './routes/favorites.js';
 import helmet from 'helmet';
-import cookie from 'cookie';
 import propertyRentalRouter from './routes/propertyRental.js';
 import userRoutes from './routes/user.js';
->>>>>>> BranchClean
-// Configuration des chemins de fichiers
-// ...existing code...
 
-// Initialisation des chemins de fichiers
-const appDir = dirname(fileURLToPath(import.meta.url));
-console.log(`Application directory: ${appDir}`);
+// Configuration de l'environnement
+dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../.env') });
 
+// Initialisation de l'application Express
 const app: Express = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
+
+// Log du répertoire de l'application
+const appDir = dirname(fileURLToPath(import.meta.url));
+console.log(`Application directory: ${appDir}`);
 
 // Augmenter la limite de taille pour les requêtes JSON
 app.use(express.json({ limit: '50mb' }));
@@ -32,20 +32,10 @@ app.use(helmet());
 // Middleware CORS
 app.use(corsMiddleware);
 
-// Définition du type pour les cookies
-type Cookies = Record<string, string | undefined>;
-
-// Extension de l'interface Request d'Express
-declare module 'express-serve-static-core' {
-  interface Request {
-    cookies: Cookies;
-  }
-}
-
 // Middleware pour parser les cookies
 app.use((req: Request, res: Response, next: NextFunction) => {
   const cookieHeader = req.headers.cookie;
-  req.cookies = cookieHeader ? cookie.parse(cookieHeader) : {};
+  req.cookies = cookieHeader ? parseCookie(cookieHeader) : {};
   next();
 });
 
@@ -55,7 +45,6 @@ app.use('/api/proofs', proofsRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api', propertyRentalRouter);
-app.use('/api/cache', cacheRoutes);
 
 // Route de santé
 app.get('/api/health', (req: Request, res: Response) => {
@@ -84,20 +73,8 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   next(err);
 });
 
-// Initialiser Redis et démarrer le serveur
+// Démarrer le serveur
 const startServer = async (): Promise<void> => {
-  if (process.env.NODE_ENV !== 'test') {
-    try {
-      await initializeRedis();
-      console.log('✅ Redis initialized successfully');
-    } catch (error) {
-      console.error('❌ Failed to initialize Redis:', error);
-      // On ne bloque pas le démarrage du serveur si Redis échoue
-      // car certaines fonctionnalités pourraient encore marcher sans Redis
-    }
-  }
-
-  // Démarrer le serveur
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
     console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);

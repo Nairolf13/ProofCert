@@ -3,7 +3,6 @@ import { AuthContext } from './AuthContext';
 import type { AuthContextProps } from './AuthContext';
 import type { User, RegisterRequest, LoginRequest } from '../types';
 import * as authApi from '../api/auth';
-<<<<<<< HEAD
 import userApi from '../api/user';
 import type { MultiversXAccount } from '../config/multiversx';
 
@@ -15,39 +14,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
   
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('user'));
-  const [isAuthLoading, setIsAuthLoading] = useState(false);
-=======
-import { API_BASE_URL } from '../config';
-
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isAuthLoading, setIsAuthLoading] = useState(true); // Initialisé à true pour le chargement initial
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
 
   // Vérifier l'authentification au chargement initial
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const token = localStorage.getItem('token');
-        if (token) {
-          // Vérifier la validité du token avec le backend
-          const res = await fetch(`${API_BASE_URL}/auth/me`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
+        const savedUser = localStorage.getItem('user');
+        
+        if (token && savedUser) {
+          try {
+            // Vérifier la validité du token en récupérant l'utilisateur actuel
+            const response = await userApi.get('/auth/me');
+            if (response.data) {
+              const currentUser = response.data;
+              // Mettre à jour les données utilisateur
+              setUser(currentUser);
+              setIsAuthenticated(true);
+              localStorage.setItem('user', JSON.stringify(currentUser));
+            } else {
+              throw new Error('Session expirée');
             }
-          });
-          
-          if (res.ok) {
-            const userData = await res.json();
-            setUser(userData);
-            setIsAuthenticated(true);
-          } else {
-            throw new Error('Session expirée');
+          } catch (error) {
+            console.error('Erreur de vérification de la session:', error);
+            // En cas d'erreur, on considère que la session est invalide
+            throw error;
           }
+        } else if (savedUser) {
+          // Si on a un utilisateur enregistré mais pas de token, on le déconnecte
+          throw new Error('Session invalide');
         }
-      } catch {
+      } catch (error) {
+        console.error('Erreur lors de la vérification de l\'authentification:', error);
         // En cas d'erreur, déconnecter l'utilisateur
         localStorage.removeItem('token');
+        localStorage.removeItem('user');
         setUser(null);
         setIsAuthenticated(false);
       } finally {
@@ -57,7 +59,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     checkAuth();
   }, []);
->>>>>>> BranchClean
 
   const login = useCallback(async (data: LoginRequest) => {
     setIsAuthLoading(true);

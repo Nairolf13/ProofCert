@@ -4,7 +4,6 @@ import { ImmersiveLayout } from '../components/ImmersiveLayout';
 import { Link } from 'react-router-dom';
 import { useAuthContext } from '../hooks/AuthContext';
 import { useMultiversXAuth } from '../hooks/useMultiversXAuth';
-<<<<<<< HEAD
 import userApi from '../api/user';
 
 export const AdminProofsPage: React.FC = () => {
@@ -94,25 +93,6 @@ export const AdminProofsPage: React.FC = () => {
     address,
     isWeb3LoggedIn
   });
-  
-=======
-
-export const AdminProofsPage: React.FC = () => {
-  const { user: classicUser } = useAuthContext();
-  const { user: web3User, isLoggedIn: isWeb3LoggedIn } = useMultiversXAuth();
-  
-  // Vérifier si l'utilisateur est administrateur via l'authentification classique ou wallet
-  const isAdmin = classicUser?.role === 'ADMIN' || 
-                 (isWeb3LoggedIn && web3User?.role === 'ADMIN');
-  
-  console.log('🔍 AdminProofsPage - Vérification des droits:', {
-    isAdmin,
-    isWeb3LoggedIn,
-    web3UserRole: web3User?.role,
-    isClassicLoggedIn: !!classicUser,
-    classicUserRole: classicUser?.role
-  });
->>>>>>> BranchClean
   const { proofs, isLoading, refreshProofs } = useProofs({ 
     includeDeleted: true,
     autoFetch: false // Désactiver le chargement automatique

@@ -4,17 +4,16 @@ import { userApi } from '../../api/user';
 
 // Effet pour lier le wallet à l'utilisateur classique si besoin
 export const WalletAutoLinker: React.FC = () => {
-  const { user, address, isLoggedIn, isWalletConnected } = useMultiversXAuth();
+  const { user, address, isLoggedIn } = useMultiversXAuth();
 
   useEffect(() => {
     console.log('[WalletAutoLinker] Effet déclenché', {
       isLoggedIn,
-      isWalletConnected,
       user,
       address,
       userWalletAddress: user?.walletAddress
     });
-    if (isLoggedIn && isWalletConnected && user && address && !user.walletAddress) {
+    if (isLoggedIn && user && address && !user.walletAddress) {
       const token = localStorage.getItem('authToken') || localStorage.getItem('token') || undefined;
       console.log('[WalletAutoLinker] Appel userApi.connectWallet', {
         address,
@@ -29,7 +28,7 @@ export const WalletAutoLinker: React.FC = () => {
           console.error('[WalletAutoLinker] Erreur lors de la liaison du wallet:', err);
         });
     }
-  }, [isLoggedIn, isWalletConnected, user, address]);
+  }, [isLoggedIn, user, address]);
   return null;
 };
 import React from 'react';

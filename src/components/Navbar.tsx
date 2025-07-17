@@ -28,78 +28,6 @@ export const Navbar: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWall
   const { user: web3User, isLoggedIn: isWeb3LoggedIn, logout: web3Logout } = useMultiversXAuth();
   const { user: classicUser, isAuthenticated: isClassicLoggedIn, disconnect: classicLogout } = useAuthContext();
   const location = useLocation();
-<<<<<<< HEAD
-  const [isWalletAdmin, setIsWalletAdmin] = useState(false);
-
-  // Logs de débogage désactivés
-
-  const isActive = (path: string) => location.pathname.startsWith(path);
-
-  // Vérifier le statut admin du wallet
-  useEffect(() => {
-    let ignore = false;
-    
-    const checkAdminStatus = async () => {
-      // Si l'utilisateur est déjà admin via l'authentification classique
-      if (classicUser?.role === 'ADMIN') {
-        if (!ignore) {
-          setIsWalletAdmin(true);
-        }
-        return;
-      }
-      
-      // Vérifier le statut admin du wallet si connecté
-      if (isWeb3LoggedIn && (web3User?.walletAddress || web3User?.address)) {
-        try {
-          // Utiliser walletAddress ou address selon ce qui est disponible
-          const walletAddress = web3User.walletAddress || web3User.address;
-          // Vérifier d'abord si le rôle est déjà disponible dans web3User
-          if (web3User.role === 'ADMIN') {
-            if (!ignore) {
-              setIsWalletAdmin(true);
-            }
-            return;
-          }
-          
-          // Sinon, faire un appel API pour vérifier le rôle
-          const { user, role } = await userApi.getByWallet(walletAddress);
-          
-          if (!ignore) {
-            const walletIsAdmin = role === 'ADMIN' || user?.role === 'ADMIN' || web3User.role === 'ADMIN';
-            setIsWalletAdmin(walletIsAdmin);
-            
-            // Mettre à jour le rôle dans web3User si nécessaire
-            if (walletIsAdmin && web3User.role !== 'ADMIN') {
-              // Mettre à jour le rôle dans le localStorage
-              const userData = localStorage.getItem('user');
-              if (userData) {
-                const parsedUser = JSON.parse(userData);
-                parsedUser.role = 'ADMIN';
-                localStorage.setItem('user', JSON.stringify(parsedUser));
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Erreur lors de la vérification du statut admin:', error);
-          if (!ignore) {
-            setIsWalletAdmin(false);
-          }
-        }
-      } else if (!ignore) {
-        console.log('Pas de wallet connecté, réinitialisation du statut admin à false');
-        setIsWalletAdmin(false);
-      }
-    };
-    
-    // Délai pour éviter les appels trop fréquents
-    const timer = setTimeout(checkAdminStatus, 500);
-    
-    return () => {
-      ignore = true;
-      clearTimeout(timer);
-    };
-  }, [classicUser, isWeb3LoggedIn, web3User]);
-=======
   
   const isActive = (path: string) => location.pathname.startsWith(path);
   
@@ -139,7 +67,6 @@ export const Navbar: React.FC<{ onOpenWalletModal: () => void }> = ({ onOpenWall
     console.log('❌ Aucun administrateur détecté');
     return false;
   }, [isClassicLoggedIn, classicUser?.role, isWeb3LoggedIn, web3User?.role]);
->>>>>>> BranchClean
 
   // Déconnexion complète
   const handleLogout = async () => {
