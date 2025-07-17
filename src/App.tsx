@@ -19,7 +19,6 @@ function App() {
           <div className="min-h-screen bg-app-background flex">
             <AppRouter onOpenWalletModal={() => setShowWalletModal(true)} />
           </div>
-          {/* ModalConnectWallet rendue comme sur la HomePage, sans Portal custom */}
           <ModalConnectWallet isOpen={showWalletModal} onClose={() => setShowWalletModal(false)} />
         </AuthProvider>
       </MultiversXProvider>

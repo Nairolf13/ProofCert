@@ -1,18 +1,7 @@
-<<<<<<< HEAD
-import express, { type Express, type Request, type Response, type NextFunction } from 'express';
-import { corsMiddleware } from './middlewares/cors';
-import authRoutes from './routes/auth';
-import proofsRoutes from './routes/proofs';
-import favoritesRoutes from './routes/favorites';
-import helmet from 'helmet';
-import cookie from 'cookie';
-import propertyRentalRouter from './routes/propertyRental';
-import userRoutes from './routes/user';
-import cacheRoutes from './routes/cache';
-import { initializeRedis } from './redis-init';
-
-=======
-import 'dotenv/config';
+import * as dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../.env') });
 import express from 'express';
 import { corsMiddleware } from './middlewares/cors.js';
 import authRoutes from './routes/auth.js';
@@ -24,8 +13,7 @@ import propertyRentalRouter from './routes/propertyRental.js';
 import userRoutes from './routes/user.js';
 >>>>>>> BranchClean
 // Configuration des chemins de fichiers
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+// ...existing code...
 
 // Initialisation des chemins de fichiers
 const appDir = dirname(fileURLToPath(import.meta.url));

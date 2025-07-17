@@ -34,6 +34,7 @@
     "@types/pg": "^8.15.4",
     "@types/qrcode": "^1.5.5",
     "@types/react-router-dom": "^5.3.3",
+    "@walletconnect/qrcode-modal": "1.8.0",
     "axios": "^1.10.0",
     "bcryptjs": "^3.0.2",
     "concurrently": "^9.2.0",

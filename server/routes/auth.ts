@@ -38,11 +38,29 @@ router.post('/login', async (req, res) => {
     const { emailOrUsername, password } = req.body;
     const normalizedEmailOrUsername = emailOrUsername.toLowerCase().trim();
     const user = await prisma.user.findFirst({
-      where: { OR: [ { email: normalizedEmailOrUsername }, { username: emailOrUsername } ] }
+      where: { OR: [ { email: normalizedEmailOrUsername }, { username: emailOrUsername } ] },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        walletAddress: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+        profileImage: true
+      }
     });
     if (!user) return res.status(401).json({ error: 'Invalid credentials' });
-    const isValidPassword = await bcrypt.compare(password, user.hashedPassword);
+
+    // On récupère le hash du mot de passe pour la vérification
+    const userForPassword = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { hashedPassword: true }
+    });
+    if (!userForPassword) return res.status(401).json({ error: 'Invalid credentials' });
+    const isValidPassword = await bcrypt.compare(password, userForPassword.hashedPassword);
     if (!isValidPassword) return res.status(401).json({ error: 'Invalid credentials' });
+
     await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
     const accessToken = generateAccessToken(user.id);
     const refreshToken = generateRefreshToken();
@@ -63,9 +81,7 @@ router.post('/login', async (req, res) => {
       maxAge: 1000 * 60 * 60 * 24 * 7,
       path: '/api/auth/refresh', 
     });
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { hashedPassword, ...userWithoutPassword } = user;
-    res.json({ user: userWithoutPassword, accessToken });
+    res.json({ user, accessToken });
   } catch (err) {
     console.error('Erreur /api/auth/login:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -179,6 +195,10 @@ router.patch('/profile-image', authenticateToken, async (req, res) => {
 router.patch('/role', authenticateToken, async (req, res) => {
   if (!req.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
   const { role } = req.body;
+  // Empêcher la modification du rôle si l'utilisateur est ADMIN
+  if (req.user.role === 'ADMIN') {
+    return res.status(403).json({ error: 'Impossible de modifier le rôle d\'un administrateur.' });
+  }
   if (!role || (role !== 'OWNER' && role !== 'TENANT')) {
     res.status(400).json({ error: 'Invalid role' }); return;
   }

@@ -45,7 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             throw new Error('Session expirée');
           }
         }
-      } catch (error) {
+      } catch {
         // En cas d'erreur, déconnecter l'utilisateur
         localStorage.removeItem('token');
         setUser(null);
@@ -65,12 +65,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await authApi.login(data);
       setUser(res.user);
       setIsAuthenticated(true);
-<<<<<<< HEAD
-      // Sauvegarder l'utilisateur dans le localStorage
+      localStorage.setItem('token', res.token);
       localStorage.setItem('user', JSON.stringify(res.user));
-=======
-      localStorage.setItem('token', res.token); // Stocker le token
->>>>>>> BranchClean
     } finally {
       setIsAuthLoading(false);
     }

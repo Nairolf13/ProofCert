@@ -1,6 +1,7 @@
 import React from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { ExtensionLoginButton, WalletConnectLoginButton, WebWalletLoginButton } from '../MultiversXAuth/components/LoginButtons';
+import { WalletAutoLinker } from '../MultiversXAuth/components/LoginButtons';
 import { LedgerLoginButton as SDKLedgerLoginButton } from '@multiversx/sdk-dapp/UI/ledger/LedgerLoginButton';
 import logo from '/logo-modern.svg';
 import '../styles/wallet-modal-overrides.css';
@@ -14,6 +15,7 @@ export const ModalConnectWallet: React.FC<ModalConnectWalletProps> = ({ isOpen, 
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/40">
+      <WalletAutoLinker />
       <div className="relative w-full max-w-md mx-4 bg-white dark:bg-gray-900 rounded-3xl shadow-2xl p-8 border border-gray-100 dark:border-gray-800">
         {/* Close button */}
         <button

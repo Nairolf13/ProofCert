@@ -8,7 +8,7 @@ interface WalletConnectErrorHandlerProps {
 export const WalletConnectErrorHandler: React.FC<WalletConnectErrorHandlerProps> = ({ children }) => {
   useEffect(() => {
     let errorCount = 0;
-    const maxErrors = 3; // Maximum d'erreurs avant reset complet
+    const maxErrors = 3; 
     
     // Écouter les erreurs de console
     const originalError = console.error;

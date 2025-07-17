@@ -276,22 +276,6 @@ const ProfilePage: React.FC = () => {
                   </div>
                 )}
                 
-                {user.address && user.address !== 'Non renseigné' && (
-                  <div className="flex items-center text-gray-700">
-                    <svg className="w-5 h-5 mr-2 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <span className="truncate">{user.address}</span>
-                  </div>
-                )}
-                
-                <div className="flex items-center text-gray-700">
-                  <WalletIcon className="w-5 h-5 mr-2 text-primary flex-shrink-0" />
-                  <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
-                    {user.walletAddress || 'Non connecté'}
-                  </span>
-                </div>
                 
                 {(isLoggedIn && account?.address) || user.walletAddress ? (
                   <div className="flex items-start text-gray-600">

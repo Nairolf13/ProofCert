@@ -1,5 +1,28 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+const ReservationSuccessModal: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
+ 
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-fade-in">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center relative">
+        <button onClick={onClose} className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-2xl">×</button>
+        <div className="flex flex-col items-center gap-4">
+          <svg className="h-16 w-16 text-green-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          <h2 className="text-2xl font-bold text-green-700">Réservation réussie !</h2>
+          <p className="text-gray-700">Votre réservation a bien été enregistrée.<br />Vous pouvez la retrouver dans votre espace "Mes réservations".</p>
+          <div className="flex flex-col gap-2 w-full mt-4">
+            <button onClick={onClose} className="px-6 py-2 rounded-lg bg-green-600 text-white font-semibold shadow hover:bg-green-700 transition">Fermer</button>
+            <Link to="/app/my-reservations" onClick={onClose} className="px-6 py-2 rounded-lg bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 transition text-center">Voir mes réservations</Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+import { useParams} from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { propertyApi } from '../api/property';
 import { rentalApi } from '../api/rental';
 import { proofsApi } from '../api/proofs';
@@ -75,6 +98,7 @@ const AMENITIES_LABELS: Record<string, string> = {
 };
 
 export const PropertyDetailPage: React.FC = () => {
+  const [showReservationSuccess, setShowReservationSuccess] = useState(false);
   const { id } = useParams<{ id: string }>();
   const [property, setProperty] = useState<Property | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -108,7 +132,7 @@ export const PropertyDetailPage: React.FC = () => {
   const [endDate, setEndDate] = useState('');
   const [isBooking, setIsBooking] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   const [proofs, setProofs] = useState<Proof[]>([]);
   const [showAddProof, setShowAddProof] = useState(false);
 
@@ -133,11 +157,9 @@ export const PropertyDetailPage: React.FC = () => {
       })
       .catch(() => setError('Erreur lors du chargement du bien'))
       .finally(() => setIsLoading(false));
-    // Récupère les avis
     propertyApi.getReviews(id).then(setReviews).catch(() => {});
-    // Récupère les preuves
     proofsApi.getByPropertyId(id).then(setProofs).catch(() => setProofs([]));
-  }, [id, isEditing, isBooking]);
+  }, [id, isEditing]);
 
   useEffect(() => {
     if (property && isEditing) {
@@ -409,56 +431,36 @@ export const PropertyDetailPage: React.FC = () => {
       setCalendarMessage("Ce créneau n'est pas disponible. Veuillez choisir d'autres dates.");
       return;
     }
-    
     setIsBooking(true);
     setCalendarMessage(null);
-    
     try {
-      // Vérifier si l'utilisateur a une adresse de portefeuille valide
       const userAddress = user.address || user.walletAddress;
       if (!userAddress) {
         setCalendarMessage("Erreur: impossible de déterminer votre adresse de portefeuille.");
         return;
       }
-      
-      // Créer la réservation
       const newRental = await rentalApi.create({ 
         propertyId: property.id, 
         tenantId: userAddress, 
         startDate, 
         endDate 
       });
-      
-      // Mettre à jour l'interface utilisateur
       setCalendarMessage("Réservation effectuée avec succès !");
       setStartDate(''); 
       setEndDate('');
-      
-      // Rafraîchir les données de la propriété
       const updatedProperty = await propertyApi.getById(property.id);
       setProperty(updatedProperty);
-      
-      // Rafraîchir la liste des réservations
       if (updatedProperty.rentals) {
         setProperty(prev => ({
           ...prev!,
           rentals: [...(prev?.rentals || []), newRental]
         }));
       }
-      
-      // Rediriger vers la page des réservations après un court délai
-      setTimeout(() => {
-        setCalendarMessage(null);
-        navigate('/app/reservations');
-      }, 2000);
-      
+      setShowReservationSuccess(true);
     } catch (err: unknown) {
       console.error('Erreur lors de la réservation:', err);
-      
       let errorMessage = "Erreur lors de la réservation.";
-      
       if (typeof err === 'object' && err !== null) {
-        // Vérifier si c'est une erreur de réponse HTTP
         if ('response' in err) {
           const response = (err as { response?: { status?: number; data?: { error?: string } } }).response;
           if (response?.status === 403) {
@@ -470,7 +472,6 @@ export const PropertyDetailPage: React.FC = () => {
           errorMessage = err.message;
         }
       }
-      
       setCalendarMessage(errorMessage);
     } finally {
       setIsBooking(false);
@@ -587,15 +588,16 @@ export const PropertyDetailPage: React.FC = () => {
                     </div>
                     
                     <div className="flex-1 flex">
-                      <PropertyReservationForm
-                        startDate={startDate}
-                        endDate={endDate}
-                        onStartDateChange={setStartDate}
-                        onEndDateChange={setEndDate}
-                        onSubmit={handleBooking}
-                        isBooking={isBooking}
-                        calendarMessage={calendarMessage}
-                      />
+      <PropertyReservationForm
+        startDate={startDate}
+        endDate={endDate}
+        onStartDateChange={setStartDate}
+        onEndDateChange={setEndDate}
+        onSubmit={handleBooking}
+        isBooking={isBooking}
+        calendarMessage={calendarMessage}
+      />
+      <ReservationSuccessModal open={showReservationSuccess} onClose={() => setShowReservationSuccess(false)} />
                     </div>
                   </div>
                 </div>
@@ -630,7 +632,7 @@ export const PropertyDetailPage: React.FC = () => {
                           e.stopPropagation();
                           const targetPath = `/app/proof/${proof.id}`;
                           if (window.location.pathname !== targetPath) {
-                            navigate(targetPath);
+                            window.location.href = targetPath;
                           }
                         }}
                         style={{ cursor: 'pointer' }}
@@ -639,8 +641,23 @@ export const PropertyDetailPage: React.FC = () => {
                           <CardTitle className="truncate text-base font-semibold">{proof.title || proof.contentType}</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="text-xs text-gray-500 mb-1 truncate">{proof.hash}</div>
+                          <div className="text-xs text-gray-500 mb-1 truncate">
+                            <span className="font-semibold">Hash SHA-256 :</span> {proof.hash}
+                          </div>
                           <div className="text-xs text-gray-700 mb-1">{proof.contentType}</div>
+                          {proof.transactionHash && (
+                            <div className="text-xs text-blue-600 mb-1 truncate">
+                              <span className="font-semibold">Tx MultiversX :</span> 
+                              <a
+                                href={`https://explorer.multiversx.com/transactions/${proof.transactionHash}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="underline hover:text-blue-800"
+                              >
+                                {proof.transactionHash}
+                              </a>
+                            </div>
+                          )}
                           {proof.ipfsHash && proof.contentType === 'IMAGE' && (
                             <img src={getIPFSUrl(proof.ipfsHash)} alt={proof.title || 'Preuve'} className="w-full h-24 object-contain rounded border my-1" />
                           )}
