@@ -23,7 +23,7 @@ export const useFavorites = () => {
         setError(null);
         const favoritesData = await favoritesApi.getAll();
         setFavorites(favoritesData);
-      } catch (error) {
+      } catch (err) { // eslint-disable-line @typescript-eslint/no-unused-vars
         setError('Erreur lors du chargement des favoris');
         setFavorites([]);
       } finally {
