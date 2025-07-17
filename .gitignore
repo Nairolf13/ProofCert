@@ -101,3 +101,15 @@ $RECYCLE.BIN/
 *.msp
 *.lnk
 .env
+
+# Fichiers de duplication
+* 2.*
+*.ts 2
+
+# Fichiers Redis supprimés
+**/redis*
+**/cache*
+
+# Fichiers de configuration spécifiques
+**/tsconfig 2.json
+**/start 2.ts
