@@ -16,7 +16,7 @@ export const ModalConnectWallet: React.FC<ModalConnectWalletProps> = ({ isOpen, 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/40">
       <WalletAutoLinker />
-      <div className="relative w-full max-w-md mx-4 bg-white dark:bg-gray-900 rounded-3xl shadow-2xl p-8 border border-gray-100 dark:border-gray-800">
+      <div className="relative w-full max-w-md mx-4 bg-white dark:bg-gray-900 rounded-3xl p-8 border border-gray-100 dark:border-gray-800">
         {/* Close button */}
         <button
           onClick={onClose}
@@ -34,11 +34,24 @@ export const ModalConnectWallet: React.FC<ModalConnectWalletProps> = ({ isOpen, 
             Connecte-toi avec ton wallet MultiversX pour accéder à toutes les fonctionnalités premium de la plateforme.
           </p>
           {/* Boutons de connexion - centrés et largeur homogène */}
-          <div className="flex flex-col items-center w-full space-y-4">
-            <WalletConnectLoginButton loginButtonText="Xportal" />
-            <ExtensionLoginButton loginButtonText="Extension MultiversX" />
-            <WebWalletLoginButton loginButtonText="Web Wallet" />
-            <SDKLedgerLoginButton loginButtonText="Ledger" callbackRoute="/dashboard" />
+          <div className="flex flex-col items-center w-full gap-3">
+            <WalletConnectLoginButton 
+              loginButtonText="Xportal" 
+              className="wallet-connect-btn"
+            />
+            <ExtensionLoginButton 
+              loginButtonText="Extension MultiversX" 
+              className="extension-btn"
+            />
+            <WebWalletLoginButton 
+              loginButtonText="Web Wallet" 
+              className="web-wallet-btn"
+            />
+            <SDKLedgerLoginButton 
+              loginButtonText="Ledger" 
+              callbackRoute="/dashboard" 
+              className="ledger-btn"
+            />
           </div>
           {/* Footer */}
           <div className="mt-8 text-center w-full">

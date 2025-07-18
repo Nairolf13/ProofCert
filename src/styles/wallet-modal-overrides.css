@@ -47,6 +47,21 @@
   text-align: center;
 }
 
+/* Styles spécifiques pour le bouton WalletConnect */
+/* Styles de base pour les boutons du SDK MultiversX */
+.wallet-connect-btn,
+.extension-btn,
+.web-wallet-btn,
+.ledger-btn {
+  width: 100%;
+  margin-bottom: 1px;
+}
+
+/* Correction du décalage du bouton Xportal */
+.wallet-connect-btn {
+  margin-top: -4px;
+}
+
 .dapp-core-component__walletConnectModal__modal,
 .dapp-core-modal,
 .dapp-core-component__modal {
@@ -97,4 +112,22 @@
   border-radius: 1.5rem !important;
   box-shadow: none !important;
   padding: 0 !important;
+}
+
+.wallet-btn button,
+.wallet-btn .dapp-core-component__main__btn {
+  width: 100%;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 0.75rem;
+  transition: all 0.15s;
+}
+
+.wallet-btn button:hover,
+.wallet-btn .dapp-core-component__main__btn:hover {
+  background-color: var(--color-primary-dark, #1e3a8a) !important;
+  transform: scale(1.03);
+  color: #fff;
 }

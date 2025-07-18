@@ -88,7 +88,7 @@ export const WalletConnectLoginButton: React.FC<LoginButtonProps> = ({
   };
 
   return (
-    <div className={`wallet-connect-wrapper ${className}`}>
+    <div className={className}>
       <SDKWalletConnectLoginButton
         {...buttonProps}
       />
